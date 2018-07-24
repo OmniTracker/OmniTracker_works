@@ -1,0 +1,3686 @@
+<!DOCTYPE html>
+<html>
+  <head>
+      <meta charset="utf-8">
+      <title>DANK WebVR</title>
+      <meta name="description" content="Gaming with Robots!">
+      <!-- As of 06- -->
+      <script src="https://aframe.io/releases/0.8.2/aframe.min.js"></script>
+      <!-- aframe animation component -->
+      <script src="https://unpkg.com/aframe-animation-compZeront@^4.1.2/dist/aframe-animation-compZeront.min.js"></script>
+      <!-- roslib.min.js:-->
+      <script src="scripts/roslib.min.js"></script>
+      <!-- eventemiter2 -->
+      <script src="scripts/eventemitter2.js"></script>
+      <!-- easeljs-->
+      <script src="scripts/easeljs-0.7.1.min.js"></script>
+      <!-- ros3d.min.js -->
+      <script src="scripts/ros3d.min.js"></script>
+      <!-- THREE.ColladaLoader: -->
+      <script src="scripts/ColladaLoader.js"></script>
+      <!-- * THREE.STLLoader: -->
+      <script src="scripts/STLLoader.js"></script>
+      <!-- THREE.ColladaLoader2 -->
+      <script src="scripts/ColladaLoader2.js"></script>
+      <!-- Physics for AFrame-->
+      <!-- https://github.com/donmccurdy/aframe-physics-system/blob/master/README.md -->
+      <script src="//cdn.rawgit.com/donmccurdy/aframe-physics-system/v3.1.2/dist/aframe-physics-system.min.js"></script>
+  </head>
+  <body>
+    <script>
+      // Or inline before the <a-scene>.
+      AFRAME.registerCompZeront('change-color', {
+        schema: {
+          color: {default: '#666'}
+      },
+      
+      init: function(){
+          var data = this.data;
+          this.el.addEventListener('click', function(){
+            this.setAttribute('color', data.color);
+          })
+        }                
+    }); </script>
+
+      <a-scene inspector="url: https://aframe.io/releases/0.3.0/aframe-inspector.min.js" 
+              physics="debug: true" 
+              stats>
+
+      <a-entity id="river" 
+              geometry="primitive: plane" 
+              material="color: blue"
+              position="-10 0 0" 
+              sound="src: url(music/fatbeat.mp3); on: click">          
+      </a-entity>
+
+      <a-entity position="20 5 0 "  
+            rotation="0 180 0">
+
+              <a-animation attribute="position" 
+                      from="20 5 0" 
+                      to="20 5 250" 
+                      dur="6000"
+                      direction="alternate-reverse"
+                      repeat="indefinite"></a-animation>
+
+        <a-camera look-controls wasd-controls="acceleration: 1000" >
+          
+        </a-camera>
+               <a-cursor scale="0.5 0.5" 
+                      color="#fff"></a-cursor>
+      </a-entity>
+
+      <a-assets>
+        <img id="sky" 
+            src="pics/sky1.jpg">
+      </a-assets>
+      
+      <a-entity >
+        <a-sky src="#sky"></a-sky>
+          <a-animation attribute="rotation"
+               dur="12000"
+               fill="forwards"
+               to="360 360 360"
+               direction="alternate-reverse"
+               repeat="indefinite"></a-animation>
+      </a-entity>
+
+      <!-- Vive and controls -->
+      <!-- https://github.com/aframevr/aframe/blob/master/docs/components/vive-controls.md -->
+
+      <!-- 
+        This section contains the model of the MOVO robot model in VR. Need to do this before:
+          -- To Do section for this section:
+      -->
+      <a-entity position="0 0 0">
+        <!-- 
+          This the connection information needed in
+        -->
+        <div id="movo_header">
+          <!-- 
+            Movo Div information 
+          -->
+          <div>
+            <h1>  
+                  MOVO Example WebVR
+            </h1>
+            <p>
+                Run the following commands in the terminal then refresh this page. Check the JavaScript
+                console for the output.
+            </p>
+            <ol>
+              <li>
+                <tt>
+                    rosrun tf2_web_republisher tf2_web_republisher
+                </tt>
+              </li>
+              <li>
+                <tt>
+                    roslaunch rosbridge_server rosbridge_websocket.launch
+                </tt>
+              </li>
+            </ol>
+          </div>
+          <!-- 
+            Status indicators for whether not the connection has been made.
+          -->
+          <div id="statusIndicator">
+            <p id="connecting">
+              Connecting to rosbridge...
+            </p>
+      
+            <p id="connected" 
+              style="color:#00D600; display:none">
+                Connected
+            </p>
+      
+            <p id="error" 
+              style="color:#FF0000; display:none">
+                Error in the backend!
+            </p>
+      
+            <p id="closed" 
+              style="display:none">
+              Connection closed.
+            </p>
+          </div>
+        </div>
+          <!-- 
+            This section of code does not contatin any actual code. It just contains information that 
+            could be relavent to future development.
+          -->
+
+
+        <div id="movo_tf_data_information">
+           <!-- 
+              In order for  any of this information to have any use, you must be connect to the MOVO2
+              server thing. The on;ly reason I decided to do this is because I needed to work on the same
+              machine for debugging issues.
+            -->
+            <!--
+                Body
+            -->
+            <div> 
+                <!--
+                  "linear_actuator_fixed_link" -> "linear_actuator_link"[label="Broadcaster:]    
+                  "base_chassis_link" -> "linear_actuator_fixed_link"[label="Broadcaster:]     
+                  "base_chassis_link" -> "mid_body_link"[label="Broadcaster:]     
+                  "base_link" -> "base_chassis_link"[label="Broadcaster:]
+                  "pan_base_link" -> "pan_link"[label="Broadcaster:] 
+                  "linear_actuator_link" -> "pan_base_link"[label="Broadcaster:]     
+
+                  "linear_actuator_link" -> "right_base_link"[label="Broadcaster:]     
+
+                  "pan_link" -> "tilt_link"[label="Broadcaster:] 
+                  "odom" -> "base_link"[label="Broadcaster:]     
+                  "base_chassis_link" -> "front_laser_link"[label="Broadcaster:] 
+                  "kinect2_link" -> "kinect2_ir_link"[label="Broadcaster:] 
+                  "tilt_link" -> "kinect2_link"[label="Broadcaster:]     
+                  "kinect2_ir_link" -> "kinect2_ir_optical_frame"[label="Broadcaster:] 
+                  "kinect2_ir_link" -> "kinect2_rgb_link"[label="Broadcaster:] 
+                  "kinect2_rgb_link" -> "kinect2_rgb_optical_frame"[label="Broadcaster:]     
+
+                  "base_chassis_link" -> "lower_body_link"[label="Broadcaster:]    
+                  "base_chassis_link" -> "rear_laser_link"[label="Broadcaster:] 
+                -->
+            </div>
+            <!--
+                Left Section of the MOVO
+            -->
+            <div> 
+                <!---
+                  "left_gripper_finger1_knuckle_link" -> "left_gripper_finger1_finger_tip_link"[label="Broadcaster:] 
+                  "left_gripper_finger2_knuckle_link" -> "left_gripper_finger2_finger_tip_link"[label="Broadcaster:] 
+                  "left_gripper_finger3_knuckle_link" -> "left_gripper_finger3_finger_tip_link"[label="Broadcaster:] 
+                  
+                  "left_arm_half_1_link" -> "left_arm_half_2_link"[label="Broadcaster:] 
+                  "left_shoulder_link" -> "left_arm_half_1_link"[label="Broadcaster:]
+                  "left_arm_half_2_link" -> "left_forearm_link"[label="Broadcaster:] 
+                  "left_gripper_base_link" -> "left_gripper_finger1_knuckle_link"[label="Broadcaster:] 
+                  "left_ee_link" -> "left_gripper_base_link"[label="Broadcaster:]
+                  "left_gripper_base_link" -> "left_gripper_finger2_knuckle_link"[label="Broadcaster:] 
+                  "left_gripper_base_link" -> "left_gripper_finger3_knuckle_link"[label="Broadcaster:] 
+                  "left_base_link" -> "left_shoulder_link"[label="Broadcaster:]
+                  "left_wrist_3_link" -> "left_ee_link"[label="Broadcaster:]     
+
+                  "linear_actuator_link" -> "left_base_link"[label="Broadcaster:]
+                  "left_wrist_spherical_2_link" -> "left_wrist_3_link"[label="Broadcaster:]     
+                  "left_wrist_spherical_1_link" -> "left_wrist_spherical_2_link"[label="Broadcaster:]    
+                  "left_forearm_link" -> "left_wrist_spherical_1_link"[label="Broadcaster:]    
+                --> 
+            </div>
+            <!--
+                Right Section of the MOVO
+            -->
+            <div>
+                <!--
+                  "right_arm_half_1_link" -> "right_arm_half_2_link"[label="Broadcaster:]     
+                  "right_shoulder_link" -> "right_arm_half_1_link"[label="Broadcaster:] 
+                  "right_arm_half_2_link" -> "right_forearm_link"[label="Broadcaster:] 
+                  "right_gripper_base_link" -> "right_gripper_finger1_knuckle_link"[label="Broadcaster:] 
+                  "right_ee_link" -> "right_gripper_base_link"[label="Broadcaster:] 
+                  "right_gripper_base_link" -> "right_gripper_finger2_knuckle_link"[label="Broadcaster:] 
+                  "right_gripper_base_link" -> "right_gripper_finger3_knuckle_link"[label="Broadcaster:]
+                  "right_base_link" -> "right_shoulder_link"[label="Broadcaster:]
+
+                  "right_wrist_spherical_2_link" -> "right_wrist_3_link"[label="Broadcaster:] 
+                  "right_wrist_spherical_1_link" -> "right_wrist_spherical_2_link"[label="Broadcaster:] 
+                  "right_forearm_link" -> "right_wrist_spherical_1_link"[label="Broadcaster:]     
+                  
+                  "right_wrist_3_link" -> "right_ee_link"[label="Broadcaster:]     
+                  "right_gripper_finger1_knuckle_link" -> "right_gripper_finger1_finger_tip_link"[label="Broadcaster:] 
+                  "right_gripper_finger2_knuckle_link" -> "right_gripper_finger2_finger_tip_link"[label="Broadcaster:] 
+                  "right_gripper_finger3_knuckle_link" -> "right_gripper_finger3_finger_tip_link"[label="Broadcaster:] 
+                  "base_chassis_link" -> "sic_imu_frame"[label="Broadcaster:] 
+                  "linear_actuator_link" -> "upper_body_link"[label="Broadcaster:] 
+                  "map" -> "odom"[label="Broadcaster:]
+                -->
+            </div>
+        </div>
+
+        <!-- 
+          Building and testing plane for the MOVO
+        -->
+
+
+
+        <!-- https://aframe.io/docs/0.7.0/components/link.html -->
+
+        <!-- Link for the Baxter Model Demo-->
+        <li>
+          <a href="full_web/baxter/index.html"> Baxter Model Demo  </a>
+        </li>
+
+        <!-- Link for the Movo Model Demo-->
+        <li>
+          <a href="full_web/movo/index.html"> Movo Model Demo </a>
+        </li>
+
+        <!-- Link for the Vive demo-->
+        <li>
+          <a href="full_web/vive_only/index.html"> Vive Demo </a>
+        </li>
+
+        <!-- Link for the Movo Move Over demo-->
+        <li>
+          <a href="full_web/movo_move_over/index.html"> MOVO Move Over</a>
+        </li>
+
+
+
+
+        <!-- 
+          The physical model information needs to be copied into the right directory of this project 
+        -->
+        <a-entity id="movo_physical_model_information" 
+                position="0 0 0" >
+
+          <!-- 
+              The Body of the MOVO  
+          -->
+          <a-entity id="base_link" 
+                    loader="src: url(models/vector_base.obj); format: obj" 
+                    rotation="270 -90 0" 
+                    position="0 0.0762 0" 
+                    material="shader: standard; 
+                            repeat: 1; 
+                            color: #242424; metalness: 0; 
+                            roughness: 1; 
+                            transparent: false; 
+                            opacity: 1; 
+                            side: double; ">                  
+          </a-entity>
+
+          <!-- 
+              The Body of the MOVO  
+          -->
+          <a-entity id="sick_tim" 
+                    loader="src: url(models/sick_tim.obj); format: obj" 
+                    rotation="90 -90 0" 
+                    position="0 0.2201106 0.3375" 
+                    material="shader: standard; 
+                          repeat: 1; 
+                          color: #030303; 
+                          metalness: 0; 
+                          roughness: 1; 
+                          transparent: false; 
+                          opacity: 1; 
+                          side: double; ">                  
+          </a-entity>
+           
+          <a-entity id="movo_payload_fixed" 
+                    loader="src: url(models/movo_payload_fixed.obj); format: obj" 
+                    rotation="270 -90 0" 
+                    position="0 0.0762 0" 
+                    material="shader: standard; 
+                          repeat: 1; 
+                          color: #242424; 
+                          metalness: 0; 
+                          roughness: 1; 
+                          transparent: false; 
+                          opacity: 1; 
+                          side: double; "> 
+          </a-entity>
+     
+          <a-entity id="pan_tilt_base1" 
+                  loader="src: url(models/pan_tilt_base1.obj); format: obj" 
+                  rotation="270 -90 0" 
+                  position="0 0.8150651 0.2744902" 
+                  material="shader: standard; 
+                          repeat: 1; 
+                          color: #0A0A0A; 
+                          metalness: 0; 
+                          roughness: 1; 
+                          transparent: false; 
+                          opacity: 1; 
+                          side: double; "> 
+          </a-entity>
+  
+          <a-entity id="movo_moving_payload" 
+                  loader="src: url(models/movo_moving_payload.obj); format: obj" 
+                  rotation="270 -90 0" 
+                  position="0 0.4700763 0.0771402" 
+                  material="shader: standard; 
+                          repeat: 1; color: #0A0A0A; 
+                          metalness: 0; 
+                          roughness: 1; 
+                          transparent: false; 
+                          opacity: 1; 
+                          side: double; "> 
+          </a-entity>
+
+          <a-entity id="tilt_link1" 
+                  loader="src: url(models/tilt_link1.obj); format: obj" 
+                  rotation="-0.0001570944 -89.99993 -270.0001" 
+                  position="-0.02599975 0.9610652 0.2744902" 
+                  material="shader: standard; 
+                        repeat: 1; color: #0A0A0A; 
+                        metalness: 0; 
+                        roughness: 1; 
+                        transparent: false; 
+                        opacity: 1; 
+                        side: double; "> 
+          </a-entity>
+
+          <a-entity id="pan_link1" 
+                  loader="src: url(models/pan_link1.obj); format: obj" 
+                  rotation="90 -90 0" 
+                  position="0 0.8703151 0.2744902" 
+                  material="shader: standard; 
+                        repeat: 1; color: #0A0A0A; 
+                        metalness: 0; 
+                        roughness: 1; 
+                        transparent: false; 
+                        opacity: 1; 
+                        side: double; "> 
+          </a-entity>
+
+          <a-entity id="kinova_base_oem" 
+                  loader="src: url(models/kinova_base_oem.obj); format: obj" 
+                  rotation="0 0 -180" 
+                  position="0.13335 0.75007 0.1032448" 
+                  material="shader: standard; 
+                        repeat: 1; 
+                        color: #3D403C; 
+                        metalness: 0; 
+                        roughness: 1; 
+                        transparent: false; 
+                        opacity: 1; 
+                        side: double; ">                
+          </a-entity>
+
+          <a-entity id="kinect_one" 
+                  loader="src: url(models/kinect_one.obj); format: obj" 
+                  rotation="270 -89.99992 0" 
+                  position="4.169917E-07 1.019315 0.2850777" 
+                  material="shader: standard; 
+                        repeat: 1; 
+                        color: #171717; 
+                        metalness: 0; 
+                        roughness: 1; 
+                        transparent: false; 
+                        opacity: 1; 
+                        side: double; ">
+          </a-entity>
+
+          <a-entity id="movo_body_fixed" 
+                  loader="src: url(models/movo_body_fixed.obj); format: obj" 
+                  rotation="270 -90 0" 
+                  position="0 0.0762 0" 
+                  material="shader: standard; 
+                        repeat: 1; 
+                        color: #0A0A0A; 
+                        metalness: 0; 
+                        roughness: 1; 
+                        transparent: false; 
+                        opacity: 1; 
+                        side: double; "> 
+          </a-entity>
+
+          <a-entity id="kinova_link6" 
+                  loader="src: url(models/kinova_link6.obj); format: obj" 
+                  rotation="0 -180 -210" 
+                  position="0.13335 0.76147 1.1093" 
+                  material="shader: standard; 
+                         repeat: 1; 
+                         color: #3D403C; 
+                         metalness: 0; 
+                         roughness: 1; 
+                         transparent: false; 
+                         opacity: 1; 
+                         side: double; "> 
+          </a-entity>
+
+          <a-entity id="sick_tim" 
+                loader="src: url(models/sick_tim.obj); format: obj" 
+                rotation="90 -270.0002 0" 
+                position="0 0.2201106 -0.3375" 
+                material="shader: standard; 
+                        repeat: 1; color: #030303; 
+                        metalness: 0; 
+                        roughness: 1; 
+                        transparent: false; 
+                        opacity: 1; 
+                        side: double; "> 
+          </a-entity>
+
+          <a-entity id="movo_body_mid" 
+                  loader="src: url(models/movo_body_mid.obj); format: obj" 
+                  rotation="270 -90 0" 
+                  position="0 0.4700763 0.0771402" 
+                  material="shader: standard; 
+                          repeat: 1; 
+                          color: #0A0A0A; 
+                          metalness: 0; 
+                          roughness: 1; 
+                          transparent: false; 
+                          opacity: 1; side: double; ">
+          </a-entity>
+
+          <a-entity id="kinova_link6" 
+                  loader="src: url(models/kinova_link6.obj); format: obj" 
+                  rotation="0 -180 -210" 
+                  position="-0.13335 0.76147 1.1093" 
+                  material="shader: standard;
+                          repeat: 1; 
+                          color: #3D403C; 
+                          metalness: 0; 
+                          roughness: 1; 
+                          transparent: false; 
+                          opacity: 1; 
+                          side: double; "> 
+          </a-entity>
+
+          <a-entity id="kinova_base_oem" 
+                  loader="src: url(models/kinova_base_oem.obj); format: obj" 
+                  rotation="0 0 -270" 
+                  position="-0.13335 0.75007 0.1032448" 
+                  material="shader: standard; 
+                          repeat: 1; 
+                          color: #3D403C; 
+                          metalness: 0; 
+                          roughness: 1; 
+                          transparent: false; 
+                          opacity: 1; 
+                          side: double; "> 
+          </a-entity>
+
+          <!-- The Left arm of the MOVO -->
+          <a-entity id="#left_node_1" 
+                  loader="src: url(models/node_1.obj); format: obj" 
+                  rotation="270 -3.358252E-06 0" 
+                  position="0.13335 0.75007 0.2844948" 
+                  material="shader: standard;
+                         repeat: 1; 
+                         color: #FFFFFF; 
+                         metalness: 0; 
+                         roughness: 1;
+                         transparent: false;
+                         opacity: 1;
+                         side: double; "> 
+          </a-entity> 
+         
+          <a-entity id="#left_node_2" 
+                  loader="src: url(models/node_2.obj);  format: obj" 
+                  rotation="0 -180 -180" 
+                  position="0.13335 0.75007 0.489495" 
+                  material="shader: standard; 
+                  repeat: 1; 
+                  color: #FFFFFF; 
+                  metalness: 0; 
+                  roughness: 1; 
+                  transparent: false;
+                  opacity: 1;
+                  side: double; "> 
+          </a-entity>
+         
+
+         <a-entity id="#left_node_5" 
+                loader="src: url(models/node_5.obj); format: obj"
+                rotation="90 -4.829672E-06 0" 
+                position="0.13335 0.75007 0.6944957" 
+                material="shader: standard; 
+                        repeat: 1; 
+                        color: #FFFFFF; 
+                        metalness: 0; 
+                        roughness: 1;
+                        transparent: false;
+                        opacity: 1;
+                        side: double; "> 
+         </a-entity>
+
+
+         <a-entity id="#left_node_23" 
+                loader="src: url(models/node_23.obj); format: obj" 
+                rotation="0 -180 0" 
+                position="0.13335 0.76147 0.9017969" 
+                material="shader: standard; 
+                      repeat: 1; 
+                      color: #FFFFFF; 
+                      metalness: 0; 
+                      roughness: 1;
+                      transparent: false; 
+                      opacity: 1; 
+                      side: double; "> 
+         </a-entity>
+
+
+         <a-entity id="#left_node_11" 
+                loader="src: url(models/node_11.obj); format: obj" 
+                rotation="270 -180 0" 
+                position="0.13335 0.76147 1.005548" 
+                material="shader: standard; 
+                      repeat: 1; 
+                      color: #FFFFFF; 
+                      metalness: 0; 
+                      roughness: 1;
+                      transparent: false; 
+                      opacity: 1; 
+                      side: double; "> 
+         </a-entity>
+      
+
+
+          <!-- 
+              The left portion of the code for the MOVO robot can be found in this section:
+                - This section of code was generated from the code at the following link:
+
+                * If you would like additional information, please refer to the link that I previously
+                  provided.   
+          -->
+
+           <!--  
+              The left hand of the MOVO 
+            -->
+           <a-entity id="#left_finger_knuckle2" 
+                    loader="src: url(models/finger_knuckle2.obj); format: obj" 
+                    scale="1.00002 0.9999686 1.000022" 
+                    rotation="349.4177 -270 -90.00002" 
+                    position="0.1110659 0.7886935 1.224034" 
+                    material="shader: standard; 
+                          repeat: 1; 
+                          color: #0A0A0A; 
+                          metalness: 0; 
+                          roughness: 1; 
+                          transparent: false; 
+                          opacity: 1; 
+                          side: double; ">                
+           </a-entity>
+
+           <!--  
+              The left hand of the MOVO 
+            -->
+           <a-entity id="#finger_tip2" 
+                  loader="src: url(models/finger_tip2.obj); format: obj" 
+                  scale="1.000056 0.9999502 1.000005" 
+                  rotation="349.4177 -270 -90.00004" 
+                  position="0.1065481 0.8128735 1.260087" 
+                  material="shader: standard; 
+                        repeat: 1; 
+                        color: #0A0A0A; 
+                        metalness: 0; 
+                        roughness: 1; 
+                        transparent: false; 
+                        opacity: 1; 
+                        side: double; ">
+           </a-entity>
+
+           <!--  
+              The left hand of the MOVO 
+            -->           
+           <a-entity id="#finger_tip2" 
+                    loader="src: url(models/finger_tip2.obj); format: obj" 
+                    scale="1.000054 0.9999492 1.000007" 
+                    rotation="10.27286 -96.00916 -270.5408" 
+                    position="0.1312277 0.7056131 1.260031" 
+                    material="shader: standard; 
+                            repeat: 1; 
+                            color: #0A0A0A; 
+                            metalness: 0; 
+                            roughness: 1; 
+                            transparent: false; opacity: 1; side: double; "></a-entity>
+
+           <!--  
+            The left hand of the MOVO 
+          -->
+           <a-entity id="#hand_3finger" 
+                    loader="src: url(models/hand_3finger.obj); format: obj" 
+                    scale="0.9999829 1.000005 1.000023" 
+                    rotation="2.049056E-05 -180 -180" 
+                    position="0.13335 0.7614699 1.109302" 
+                    material="shader: standard; 
+                          repeat: 1; color: #0A0A0A; 
+                          metalness: 0; 
+                          roughness: 1; 
+                          transparent: false; 
+                          opacity: 1; 
+                          side: double; ">   
+          </a-entity>
+           
+           <!--  
+            The left hand of the MOVO 
+          -->
+           <a-entity id="#finger_tip2" 
+                    loader="src: url(models/finger_tip2.obj); format: obj" 
+                    scale="0.9999507 1.000023 1.000038" 
+                    rotation="79.41727 -89.9997 -179.9997" 
+                    position="0.1601566 0.8129032 1.260067" 
+                    material="shader: standard; 
+                          repeat: 1; color: #0A0A0A; 
+                          metalness: 0; roughness: 1; 
+                          transparent: false; opacity: 1; 
+                          side: double; ">                
+           </a-entity>
+           
+           <!--  
+            The left hand of the MOVO 
+          -->
+           <a-entity id="#finger_knuckle2" 
+                    loader="src: url(models/finger_knuckle2.obj); format: obj" 
+                    scale="0.9999923 1.000022 0.999998" 
+                    rotation="79.4173 -89.9998 -179.9998" 
+                    position="0.155639 0.7887232 1.224013" 
+                    material="shader: standard; 
+                          repeat: 1; color: #0A0A0A; 
+                          metalness: 0; 
+                          roughness: 1; 
+                          transparent: false; 
+                          opacity: 1; 
+                          side: double; "> 
+           </a-entity>
+
+           <!--  
+            The left hand of the MOVO 
+          -->
+           <a-entity id="#finger_knuckle2" 
+                    loader="src: url(models/finger_knuckle2.obj); format: obj" 
+                    scale="1.000019 0.9999681 1.000022" 
+                    rotation="10.27286 -96.00916 -270.5408" 
+                    position="0.1305545 0.7301514 1.223944" 
+                    material="shader: standard; 
+                            repeat: 1; color: #0A0A0A; 
+                            metalness: 0; 
+                            roughness: 1; 
+                            transparent: false; 
+                            opacity: 1; 
+                            side: double; ">                   
+           </a-entity>
+
+
+
+
+
+          <!-- 
+              The right arm of the code for the MOVO robot can be found in this section:
+                - This section of code was generated from the code at the following link:
+
+                * If you would like additional information, please refer to the link that I previously
+                  provided.   
+          -->
+
+           <!--
+                Put information in reagrds to how the robot is properly constructed
+           -->
+           <a-entity id="#right_node_1" 
+                   loader="src: url(models/node_1.obj); format: obj" 
+                   rotation="270 -3.358252E-06 0" 
+                   position="-0.13335 0.75007 0.2844948" 
+                   material="shader: standard; 
+                          repeat: 1; 
+                          color: #FFFFFF; 
+                          metalness: 0; 
+                          roughness: 1; 
+                          transparent: false; 
+                          opacity: 1; 
+                          side: double; ">
+             
+           </a-entity>
+          
+
+
+
+           <!--
+            Put information in reagrds to how the robot is properly constructed
+           -->
+
+
+           <a-entity id="#right_node_2" 
+           loader="src: url(models/node_2.obj); format: obj" 
+           rotation="0 -180 -180" 
+           position="-0.13335 0.75007 0.489495" 
+           material="shader: standard; 
+                  repeat: 1; 
+                  color: #FFFFFF; 
+                  metalness: 0; 
+                  roughness: 1; 
+                  transparent: false; 
+                  opacity: 1; 
+                  side: double; ">
+             
+           </a-entity>
+
+          <!--
+            Put information in reagrds to how the robot is properly constructed
+           -->
+           
+           <a-entity id="#right_node_5" 
+           loader="src: url(models/node_5.obj); format: obj" 
+           rotation="90 -4.829672E-06 0" 
+           position="-0.13335 0.75007 0.6944957" 
+           material="shader: standard; 
+                  repeat: 1; 
+                  color: #FFFFFF; 
+                  metalness: 0;
+                  roughness: 1; 
+                  transparent: false; 
+                  opacity: 1; 
+                  side: double; ">
+           </a-entity>
+
+           <!--
+            Put information in reagrds to how the robot is properly constructed
+           -->
+           <a-entity id="#right_node_23" 
+                   loader="src: url(models/node_23.obj); format: obj" 
+                   rotation="0 -180 0" 
+                   position="-0.13335 0.76147 0.9017969" 
+                   material="shader: standard; 
+                   repeat: 1; 
+                   color: #FFFFFF; 
+                   metalness: 0;
+                   roughness: 1; 
+                   transparent: false; 
+                   opacity: 1; 
+                   side: double; ">      
+           </a-entity>
+
+           <!--
+            Put information in reagrds to how the robot is properly constructed
+           -->
+           <a-entity id="#right_node_11" 
+                   loader="src: url(models/node_11.obj); format: obj" 
+                   rotation="270 -180 0" 
+                   position="-0.13335 0.76147 1.005548" 
+                   material="shader: standard;
+                          repeat: 1; 
+                          color: #FFFFFF; 
+                          metalness: 0; 
+                          roughness: 1; 
+                          transparent: false; 
+                          opacity: 1; 
+                          side: double; ">
+           </a-entity>
+           <!--
+            Put information in reagrds to how the robot is properly constructed
+           -->
+           <a-entity id="#right_node_7" 
+                   loader="src: url(models/node_7.obj); format: obj" 
+                   rotation="0 -180 -180" 
+                   position="-0.13335 0.75007 0.1657448" 
+                   material="shader: standard; 
+                          repeat: 1; 
+                          color: #FFFFFF; 
+                          metalness: 0; 
+                          roughness: 1; 
+                          transparent: false; 
+                          opacity: 1; 
+                          side: double; ">             
+           </a-entity>
+
+          <!-- 
+              The right hand of the code for the MOVO robot can be found in this section:
+                - This section of code was generated from the code at the following link:
+
+                * If you would like additional information, please refer to the link that I previously
+                  provided.   
+          -->
+
+          <!-- 
+              The Right hand of the MOVO  
+          -->
+          <a-entity id="#finger_knuckle2" 
+                  loader="src: url(models/finger_knuckle2.obj); format: obj" 
+                  scale="1.00002 0.9999686 1.000022" 
+                  rotation="349.4177 -270 -90.00002" 
+                  position="-0.1556341 0.7886935 1.224034" 
+                  material="shader: standard; 
+                          repeat: 1; 
+                          color: #0A0A0A; 
+                          metalness: 0; 
+                          roughness: 1; 
+                          transparent: false; 
+                          opacity: 1; 
+                          side: double; ">          
+          </a-entity>     
+          <!-- 
+            The Right hand of the MOVO  
+          -->
+          <a-entity id="#finger_tip2" 
+                  loader="src: url(models/finger_tip2.obj); format: obj" 
+                  scale="1.000056 0.9999492 1.000006" 
+                  rotation="10.58274 -270 -90.00001" 
+                  position="-0.1065434 0.8129032 1.260067" 
+                  material="shader: standard; 
+                          repeat: 1; color: #0A0A0A; 
+                          metalness: 0; 
+                          roughness: 1; 
+                          transparent: false; 
+                          opacity: 1; 
+                          side: double; ">                 
+          </a-entity>
+          <!-- 
+            The Right hand of the MOVO  
+          -->
+          <a-entity id="#finger_tip2" 
+                  loader="src: url(models/finger_tip2.obj); format: obj" 
+                  scale="1.000056 0.9999502 1.000005" 
+                  rotation="349.4177 -270 -90.00004" 
+                  position="-0.1601516 0.8128735 1.260087" 
+                  material="shader: standard; 
+                          repeat: 1; 
+                          color: #0A0A0A; 
+                          metalness: 0; 
+                          roughness: 1; 
+                          transparent: false; 
+                          opacity: 1; 
+                          side: double; ">      
+          </a-entity>
+          <!-- 
+            The Right hand of the MOVO  
+          -->  
+          <a-entity id="#right_hand_3finger" 
+                  loader="src: url(models/hand_3finger.obj); format: obj" 
+                  scale="0.9999829 1.000005 1.000023" 
+                  rotation="2.049056E-05 -180 -180" 
+                  position="-0.13335 0.7614699 1.109302" 
+                  material="shader: standard; 
+                          repeat: 1; 
+                          color: #0A0A0A; metalness: 0; 
+                          roughness: 1; 
+                          transparent: false; 
+                          opacity: 1; 
+                          side: double; ">                  
+          </a-entity>
+          <!-- 
+            The Right hand of the MOVO  
+          -->   
+          <a-entity id="#finger_knuckle2" 
+                  loader="src: url(models/finger_knuckle2.obj); format: obj" 
+                  scale="1.000021 0.9999685 1.000023" 
+                  rotation="10.58272 -270 -90.00002" 
+                  position="-0.111061 0.7887231 1.224014" 
+                  material="shader: standard; 
+                          repeat: 1; 
+                          color: #0A0A0A; 
+                          metalness: 0; 
+                          roughness: 1; 
+                          transparent: false; 
+                          opacity: 1; 
+                          side: double; ">      
+          </a-entity>
+          <!-- 
+            The Right hand of the MOVO  
+          -->   
+          <a-entity id="#finger_tip2" 
+                  loader="src: url(models/finger_tip2.obj); format: obj" 
+                  scale="1.000054 0.9999492 1.000007" 
+                  rotation="10.27286 -96.00916 -270.5408" 
+                  position="-0.1354723 0.7056131 1.260031" 
+                  material="shader: standard; 
+                            repeat: 1; 
+                            color: #0A0A0A; 
+                            metalness: 0; 
+                            roughness: 1; 
+                            transparent: false; 
+                            opacity: 1; 
+                            side: double; ">        
+          </a-entity>
+          <!-- 
+            The Right hand of the MOVO  
+          --> 
+          <a-entity id="#finger_knuckle2" 
+                  loader="src: url(models/finger_knuckle2.obj); format: obj" 
+                  scale="1.000019 0.9999681 1.000022" 
+                  rotation="10.27286 -96.00916 -270.5408" 
+                  position="-0.1361455 0.7301514 1.223944" 
+                  material="shader: standard; 
+                          repeat: 1; 
+                          color: #0A0A0A; 
+                          metalness: 0; 
+                          roughness: 1; 
+                          transparent: false; 
+                          opacity: 1; s
+                          ide: double; ">
+          </a-entity>
+
+      </a-entity>
+      <!-- 
+        This section of the code contains the Baxter robot model in VR.  Need to do this before:
+      -->
+      <a-entity position="0 0 0" >
+
+      </a-entity>
+      <!-- 
+        Insert something you need to do in this section of the code.
+      -->
+      <a-entity position="0 0 0" >
+
+      </a-entity>
+      <!-- 
+        Insert something you need to do in this section of the code.
+      -->
+      <a-entity position="0 0 0" >
+
+      </a-entity>
+      <!-- 
+        Insert something you need to do in this section of the code.
+      -->
+      <a-entity position="0 0 0" >
+
+      </a-entity>
+      <!-- 
+        Main_Floor - for right now, this is just a black ground. I need to look more into 
+                      the transitioning of colors. 
+      -->
+      <a-plane id="Main_Floor" 
+              position="20 -40 100" 
+              rotation="-90 0 0" 
+              width="60" 
+              height="350" 
+              color="#000000" 
+              material="" 
+              geometry="" 
+              opacity=" 0.95"
+              depth="1"
+              animation="property: color; dir: alternate; dur: 5000;
+                             easing: easeInSine; loop: true; to: #004073">
+
+      </a-plane>
+      <!-- 
+            This section of the code is for something blah blah blah
+      -->
+      <a-entity position="0 0 0">
+        <!-- 
+            This section of the code is for something blah blah blah
+        -->
+              <a-animation attribute="position" 
+                      from="-20 0 0" 
+                      to="20 0 20" 
+                      dur="10000"
+                      direction="alternate-reverse"
+                      repeat="indefinite"></a-animation>
+
+        <a-entity position="0 0 0" >
+          <!-- 
+              Square Zero_Zero 
+          -->
+          <a-entity position="0 0 0">
+            <!-- 
+                This section of code is for the moving shapes.
+
+                  -- Shape 1 
+                  -- Shape 2
+                  -- Shape 3
+            -->
+            <a-entity  position="0 0 0">
+              <a-entity position="28 278 267">
+                <a-box position="-5.844592040302855 3.236704725633225 -3" 
+                    rotation="0 45 0" 
+                    color="#4CC3D9" 
+                    material="" 
+                    geometry=""> </a-box>
+                        <a-animation attribute="rotation"
+                                  dur="20000"
+                                  fill="forwards"
+                                  to="200 200 200"
+                                  repeat="indefinite"></a-animation>
+              </a-entity>
+
+              <a-entity position="437 380 289">
+                <a-sphere position="0 1.25 -3.3734518622144902" 
+                      radius="1.25" 
+                      color="#EF2D5E" 
+                      material="" 
+                      geometry=""></a-sphere>
+                <a-animation attribute="rotation"
+                       dur="40000"
+                       fill="forwards"
+                       to="0 360 0"
+                       repeat="indefinite"></a-animation>
+              </a-entity>
+
+              <a-entity position="238 278 278">
+                <a-cylinder position="4.972937126212932 0.75 -3" 
+                        radius="0.5" 
+                        height="1.5" 
+                        color="#FFC65D" 
+                        material="" 
+                        geometry=""></a-cylinder>
+                  <a-animation attribute="rotation"
+                            dur="1000"
+                            fill="forwards"
+                            to="360 0 360"
+                            repeat="indefinite"></a-animation>
+              </a-entity>
+            </a-entity>
+            <!-- Side Swip-->
+            <a-cylinder color="#F55"
+                      radius="0.1"
+                      animation="property: color; dir: alternate; dur: 1000;
+                                 easing: easeInSine; loop: true; to: #5F5"
+                      animation__scale="property: scale; dir: alternate; dur: 200;
+                                 easing: easeInSine; loop: true; to: 1.2 1 1.2"
+                      animation__yoyo="property: position; dir: alternate; dur: 1000;
+                                       easing: easeInSine; loop: true; to: 0 2 0">
+            </a-cylinder>
+            <!-- platform_1 -->
+            <a-entity >
+              <a-plane id="platform_1" 
+                    position="0 0 0" 
+                    rotation="-90 0 0" 
+                    width="4" 
+                    height="4" 
+                    color="#F95757" 
+                    material="" 
+                    geometry=""></a-plane>
+              <a-animation attribute="position" 
+                        from="0 0 0" 
+                        to="0 -4 0" 
+                        dur="1000"
+                        direction="alternate-reverse"
+                        repeat="indefinite"></a-animation>
+            </a-entity>
+            <!-- platform_2 -->
+            <a-entity >
+              <a-plane id="platform_2"
+                      position="4 0 -4" 
+                      rotation="-90 0 0" 
+                      width="4" 
+                      height="4" 
+                      color="#ECF91A" 
+                      material="" 
+                      geometry=""></a-plane>
+                <a-animation attribute="position" 
+                        from="4 0 -4" 
+                        to="0 -4 0" 
+                        dur="1000"
+                        direction="alternate-reverse"
+                        repeat="indefinite"></a-animation>
+            </a-entity>
+            <!-- platform_3 -->
+            <a-entity position="0 0 0" >
+              <a-plane id="platform_3"
+                      position="0 0 -4" 
+                      rotation="-90 0 0" 
+                      width="4" 
+                      height="4" 
+                      color="#FFDD5B" 
+                      material="" 
+                      geometry=""></a-plane>
+              <a-animation attribute="position" 
+                        from="0 0 -4" 
+                        to="0 -4 0" 
+                        dur="1000"
+                        direction="alternate-reverse"
+                        repeat="indefinite"></a-animation>
+            </a-entity>
+            <!-- platform_4 -->
+            <a-entity position="0 0 0" >
+              <a-plane id="platform_4"
+                      position="-4 0 -4" 
+                      rotation="-90 0 0" 
+                      width="4" 
+                      height="4" 
+                      color="#A7CC07" 
+                      material="" 
+                      geometry=""></a-plane>
+                <a-animation attribute="position" 
+                      from="-4 0 -4" 
+                      to="0 -4 0" 
+                      dur="1000"
+                      direction="alternate-reverse"
+                      repeat="indefinite"></a-animation>
+            </a-entity>
+            <!-- -platform_6 -->
+            <a-entity position="0 0 0" >
+              <a-plane id="platform_6" 
+                  position="0 0 -8" 
+                  rotation="-90 0 0" 
+                  width="4" 
+                  height="12" 
+                  color="#1ADEF9" 
+                  material="" 
+                  geometry=""></a-plane>
+              <a-animation attribute="position" 
+                      from="0 0 -8" 
+                      to="0 -4 -8" 
+                      dur="1000"
+                      direction="alternate-reverse"
+                      repeat="indefinite"></a-animation>
+            </a-entity>
+            <!-- -platform_5 -->
+            <a-entity position="0 0 0" >
+              <a-plane id="platform_5" 
+                  position="0 0 8" 
+                  rotation="-90 0 0" 
+                  width="4" 
+                  height="20" 
+                  color="#30CC07" 
+                  material="" 
+                  geometry=""></a-plane>
+              <a-animation attribute="position" 
+                      from="0 0 8" 
+                      to="0 -4 4" 
+                      dur="1000"
+                      direction="alternate-reverse"
+                      repeat="indefinite"></a-animation>
+            </a-entity>
+          </a-entity>
+          
+          <!-- 
+              Square Zero_Two 
+          -->
+          <a-entity position="0 0 50">
+            <!-- 
+                This section of code is for the moving shapes.
+
+                  -- Shape 1 
+                  -- Shape 2
+                  -- Shape 3
+            -->
+            <a-entity  position="0 0 0">
+              <a-entity position="289 389 278">
+                <a-box position="-5.844592040302855 3.236704725633225 -3" 
+                      rotation="0 45 0" 
+                      color="#4CC3D9" 
+                      material="" 
+                      geometry=""> </a-box>
+                        <a-animation 
+                                attribute="rotation"
+                                dur="10000"
+                                fill="forwards"
+                                to="200 200 200"
+                                repeat="indefinite"></a-animation>
+              </a-entity>
+
+              <a-entity position="352 745 26">
+                <a-sphere position="0 1.25 -3.3734518622144902" 
+                        radius="1.25" 
+                        color="#EF2D5E" 
+                        material="" 
+                        geometry=""></a-sphere>
+                <a-animation attribute="rotation"
+                       dur="40000"
+                       fill="forwards"
+                       to="0 360 0"
+                       repeat="indefinite"></a-animation>
+              </a-entity>
+
+              <a-entity position="235 265 903">
+                <a-cylinder position="4.972937126212932 0.75 -3" 
+                          radius="0.5" 
+                          height="1.5" 
+                          color="#FFC65D" material="" geometry=""></a-cylinder>
+                  <a-animation attribute="rotation"
+                       dur="1000"
+                       fill="forwards"
+                       to="360 0 360"
+                       repeat="indefinite"></a-animation>
+              </a-entity>
+            </a-entity>
+            <!-- Side Swip-->
+            <a-cylinder color="#F55" 
+                      radius="0.1"
+                      animation="property: color; dir: alternate; dur: 1000;
+                                 easing: easeInSine; loop: true; to: #5F5"
+                      animation__scale="property: scale; dir: alternate; dur: 200;
+                                 easing: easeInSine; loop: true; to: 1.2 1 1.2"
+                      animation__yoyo="property: position; dir: alternate; dur: 1000;
+                                       easing: easeInSine; loop: true; to: 0 2 0">
+            </a-cylinder>
+            <!-- platform_1 -->
+            <a-entity >
+              <a-plane id="platform_1" 
+                    position="0 0 0" 
+                    rotation="-90 0 0" 
+                    width="4" 
+                    height="4" 
+                    color="#F91ACD" 
+                    material="" 
+                    geometry=""></a-plane>
+              <a-animation attribute="position" 
+                        from="0 0 0" 
+                        to="0 -4 0" 
+                        dur="1000"
+                        direction="alternate-reverse"
+                        repeat="indefinite"></a-animation>
+            </a-entity>
+            <!-- platform_2 -->
+            <a-entity >
+              <a-plane id="platform_2"
+                      position="4 0 -4" 
+                      rotation="-90 0 0" 
+                      width="4" 
+                      height="4" 
+                      color="#4B85D6" 
+                      material="" 
+                      geometry=""></a-plane>
+                <a-animation attribute="position" 
+                        from="4 0 -4" 
+                        to="0 -4 0" 
+                        dur="1000"
+                        direction="alternate-reverse"
+                        repeat="indefinite"></a-animation>
+            </a-entity>
+            <!-- platform_3 -->
+            <a-entity position="0 0 0" >
+              <a-plane id="platform_3"
+                      position="0 0 -4" 
+                      rotation="-90 0 0" 
+                      width="4" 
+                      height="4" 
+                      color="#223296" 
+                      material="" 
+                      geometry=""></a-plane>
+              <a-animation attribute="position" 
+                        from="0 0 -4" 
+                        to="0 -4 0" 
+                        dur="1000"
+                        direction="alternate-reverse"
+                        repeat="indefinite"></a-animation>
+            </a-entity>
+            <!-- platform_4 -->
+            <a-entity position="0 0 0" >
+              <a-plane id="platform_4"
+                      position="-4 0 -4" 
+                      rotation="-90 0 0" 
+                      width="4" 
+                      height="4" 
+                      color="#784BD6" 
+                      material="" 
+                      geometry=""></a-plane>
+                <a-animation attribute="position" 
+                      from="-4 0 -4" 
+                      to="0 -4 0" 
+                      dur="1000"
+                      direction="alternate-reverse"
+                      repeat="indefinite"></a-animation>
+            </a-entity>
+            <!-- -platform_6 -->
+            <a-entity position="0 0 0" >
+              <a-plane id="platform_6" 
+                  position="0 0 -8" 
+                  rotation="-90 0 0" 
+                  width="4" 
+                  height="12" 
+                  color="#D64BC1" 
+                  material="" 
+                  geometry=""></a-plane>
+              <a-animation attribute="position" 
+                      from="0 0 -8" 
+                      to="0 -4 -8" 
+                      dur="1000"
+                      direction="alternate-reverse"
+                      repeat="indefinite"></a-animation>
+            </a-entity>
+            <!-- -platform_5 -->
+            <a-entity position="0 0 0" >
+              <a-plane id="platform_5" 
+                  position="0 0 8" 
+                  rotation="-90 0 0" 
+                  width="4" 
+                  height="20" 
+                  color="#9F0821" 
+                  material="" 
+                  geometry=""></a-plane>
+              <a-animation attribute="position" 
+                      from="0 0 8" 
+                      to="0 -4 4" 
+                      dur="1000"
+                      direction="alternate-reverse"
+                      repeat="indefinite"></a-animation>
+            </a-entity>
+          </a-entity>
+          
+          <!-- 
+            Square Zero_Three 
+          -->
+          <a-entity position="0 0 100">
+            <!-- 
+                This section of code is for the moving shapes.
+
+                  -- Shape 1 
+                  -- Shape 2
+                  -- Shape 3
+            -->
+            <a-entity  position="0 0 0">
+              <a-entity  position="0 0 0">
+                <a-box position="-5.844592040302855 3.236704725633225 -3" 
+                      rotation="0 45 0" 
+                      color="#4CC3D9" 
+                      material="" 
+                      geometry=""> </a-box>
+                        <a-animation attribute="rotation"
+                                  dur="40000"
+                                  fill="forwards"
+                                  to="200 200 200"
+                                  repeat="indefinite"></a-animation>
+              </a-entity>
+
+              <a-entity  position="0 0 0">
+                <a-sphere position="0 1.25 -3.3734518622144902" 
+                      radius="1.25" 
+                      color="#EF2D5E" 
+                      material="" 
+                      geometry=""></a-sphere>
+                <a-animation attribute="rotation"
+                          dur="10000"
+                          fill="forwards"
+                          to="0 360 0"
+                          repeat="indefinite"></a-animation>
+              </a-entity>
+
+              <a-entity  position="0 0 0">
+                <a-cylinder position="4.972937126212932 0.75 -3" 
+                          radius="0.5" 
+                          height="1.5" 
+                          color="#FFC65D" 
+                          material="" 
+                          geometry=""></a-cylinder>
+                  <a-animation attribute="rotation"
+                       dur="1000"
+                       fill="forwards"
+                       to="360 0 360"
+                       repeat="indefinite"></a-animation>
+              </a-entity>
+            </a-entity>
+            <!-- Side Swip-->
+            <a-cylinder color="#F55" 
+                      radius="0.1"
+                      animation="property: color; dir: alternate; dur: 1000;
+                                 easing: easeInSine; loop: true; to: #5F5"
+                      animation__scale="property: scale; dir: alternate; dur: 200;
+                                 easing: easeInSine; loop: true; to: 1.2 1 1.2"
+                      animation__yoyo="property: position; dir: alternate; dur: 1000;
+                                       easing: easeInSine; loop: true; to: 0 2 0">
+            </a-cylinder>
+            <!-- platform_1 -->
+            <a-entity >
+              <a-plane id="platform_1" 
+                    position="0 0 0" 
+                    rotation="-90 0 0" 
+                    width="4" 
+                    height="4" 
+                    color="#9F0821" 
+                    material="" 
+                    geometry=""></a-plane>
+              <a-animation attribute="position" 
+                        from="0 0 0" 
+                        to="0 -4 0" 
+                        dur="1000"
+                        direction="alternate-reverse"
+                        repeat="indefinite"></a-animation>
+            </a-entity>
+            <!-- platform_2 -->
+            <a-entity >
+
+              <a-plane id="platform_2"
+                      position="4 0 -4" 
+                      rotation="-90 0 0" 
+                      width="4" 
+                      height="4" 
+                      color="#9F0808" 
+                      material="" 
+                      geometry=""></a-plane>
+                <a-animation attribute="position" 
+                        from="4 0 -4" 
+                        to="0 -4 0" 
+                        dur="1000"
+                        direction="alternate-reverse"
+                        repeat="indefinite"></a-animation>
+            </a-entity>
+            <!-- platform_3 -->
+            <a-entity position="0 0 0" >
+              <a-plane id="platform_3"
+                      position="0 0 -4" 
+                      rotation="-90 0 0" 
+                      width="4" 
+                      height="4" 
+                      color="#223296" 
+                      material="" 
+                      geometry=""></a-plane>
+              <a-animation attribute="position" 
+                        from="0 0 -4" 
+                        to="0 -4 0" 
+                        dur="1000"
+                        direction="alternate-reverse"
+                        repeat="indefinite"></a-animation>
+            </a-entity>
+            <!-- platform_4 -->
+            <a-entity position="0 0 0" >
+              <a-plane id="platform_4"
+                      position="-4 0 -4" 
+                      rotation="-90 0 0" 
+                      width="4" 
+                      height="4" 
+                      color="#FFEC83" 
+                      material="" 
+                      geometry=""></a-plane>
+                <a-animation attribute="position" 
+                      from="-4 0 -4" 
+                      to="0 -4 0" 
+                      dur="1000"
+                      direction="alternate-reverse"
+                      repeat="indefinite"></a-animation>
+            </a-entity>
+            <!-- -platform_6 -->
+            <a-entity position="0 0 0" >
+              <a-plane id="platform_6" 
+                  position="0 0 -8" 
+                  rotation="-90 0 0" 
+                  width="4" 
+                  height="12" 
+                  color="#827BF4" 
+                  material="" 
+                  geometry=""></a-plane>
+              <a-animation attribute="position" 
+                      from="0 0 -8" 
+                      to="0 -4 -8" 
+                      dur="1000"
+                      direction="alternate-reverse"
+                      repeat="indefinite"></a-animation>
+            </a-entity>
+            <!-- -platform_5 -->
+            <a-entity position="0 0 0" >
+              <a-plane id="platform_5" 
+                  position="0 0 8" 
+                  rotation="-90 0 0" 
+                  width="4" 
+                  height="20" 
+                  color="#827BF4" 
+                  material="" 
+                  geometry=""></a-plane>
+              <a-animation attribute="position" 
+                      from="0 0 8" 
+                      to="0 -4 4" 
+                      dur="1000"
+                      direction="alternate-reverse"
+                      repeat="indefinite"></a-animation>
+            </a-entity>
+          </a-entity>
+          
+          <!-- 
+            Square Zero_Four 
+          -->
+          <a-entity position="0 0 150" >
+            <!-- 
+                This section of code is for the moving shapes.
+
+                  -- Shape 1 
+                  -- Shape 2
+                  -- Shape 3
+            -->
+            <a-entity  position="0 0 0">
+              <a-entity  position="0 0 0" >
+                <a-box position="-5.844592040302855 3.236704725633225 -3" 
+                      rotation="0 45 0" 
+                      color="#4CC3D9" 
+                      material="" 
+                      geometry=""> </a-box>
+                        <a-animation attribute="rotation"
+                                    dur="20000"
+                                    fill="forwards"
+                                    to="200 200 200"
+                                    repeat="indefinite">
+                                    
+                        </a-animation>
+              </a-entity>
+
+              <a-entity  position="0 0 0">
+                <a-sphere position="0 1.25 -3.3734518622144902" 
+                        radius="1.25" 
+                        color="#EF2D5E" 
+                        material="" 
+                        geometry="">
+                </a-sphere>
+                <a-animation attribute="rotation"
+                       dur="40000"
+                       fill="forwards"
+                       to="0 360 0"
+                       repeat="indefinite">       
+                  </a-animation>
+              </a-entity>
+
+              <a-entity  position="0 0 0">
+                <a-cylinder position="4.972937126212932 0.75 -3" 
+                          radius="0.5" 
+                          height="1.5" 
+                          color="#FFC65D" 
+                          material="" 
+                          geometry=""></a-cylinder>
+                  <a-animation attribute="rotation"
+                              dur="1000"
+                              fill="forwards"
+                              to="360 0 360"
+                              repeat="indefinite"></a-animation>
+              </a-entity>
+            </a-entity>
+            <!-- Side Swip-->
+            <a-cylinder color="#F55" 
+                      radius="0.1"
+                      animation="property: color; dir: alternate; dur: 1000;
+                                 easing: easeInSine; loop: true; to: #5F5"
+                      animation__scale="property: scale; dir: alternate; dur: 200;
+                                 easing: easeInSine; loop: true; to: 1.2 1 1.2"
+                      animation__yoyo="property: position; dir: alternate; dur: 1000;
+                                       easing: easeInSine; loop: true; to: 0 2 0">
+            </a-cylinder>
+            <!-- platform_1 -->
+            <a-entity >
+              <a-plane id="platform_1" 
+                    position="0 0 0" 
+                    rotation="-90 0 0" 
+                    width="4" 
+                    height="4" 
+                    color="#7BF4A6" 
+                    material="" 
+                    geometry=""></a-plane>
+              <a-animation attribute="position" 
+                        from="0 0 0" 
+                        to="0 -4 0" 
+                        dur="1000"
+                        direction="alternate-reverse"
+                        repeat="indefinite"></a-animation>
+            </a-entity>
+            <!-- platform_2 -->
+            <a-entity >
+
+              <a-plane id="platform_2"
+                      position="4 0 -4" 
+                      rotation="-90 0 0" 
+                      width="4" 
+                      height="4" 
+                      color="#7BE9F4" 
+                      material="" 
+                      geometry=""></a-plane>
+                <a-animation attribute="position" 
+                        from="4 0 -4" 
+                        to="0 -4 0" 
+                        dur="1000"
+                        direction="alternate-reverse"
+                        repeat="indefinite"></a-animation>
+            </a-entity>
+            <!-- platform_3 -->
+            <a-entity position="0 0 0" >
+              <a-plane id="platform_3"
+                      position="0 0 -4" 
+                      rotation="-90 0 0" 
+                      width="4" 
+                      height="4" 
+                      color="#223296" 
+                      material="" 
+                      geometry=""></a-plane>
+              <a-animation attribute="position" 
+                        from="0 0 -4" 
+                        to="0 -4 0" 
+                        dur="1000"
+                        direction="alternate-reverse"
+                        repeat="indefinite"></a-animation>
+            </a-entity>
+            <!-- platform_4 -->
+            <a-entity position="0 0 0" >
+              <a-plane id="platform_4"
+                      position="-4 0 -4" 
+                      rotation="-90 0 0" 
+                      width="4" 
+                      height="4" 
+                      color="#954D6E" 
+                      material="" 
+                      geometry=""></a-plane>
+                <a-animation attribute="position" 
+                      from="-4 0 -4" 
+                      to="0 -4 0" 
+                      dur="1000"
+                      direction="alternate-reverse"
+                      repeat="indefinite"></a-animation>
+            </a-entity>
+            <!-- -platform_6 -->
+            <a-entity position="0 0 0" >
+              <a-plane id="platform_6" 
+                  position="0 0 -8" 
+                  rotation="-90 0 0" 
+                  width="4" 
+                  height="12" 
+                  color="#3F1DFF" 
+                  material="" 
+                  geometry=""></a-plane>
+              <a-animation attribute="position" 
+                      from="0 0 -8" 
+                      to="0 -4 -8" 
+                      dur="1000"
+                      direction="alternate-reverse"
+                      repeat="indefinite"></a-animation>
+            </a-entity>
+            <!-- -platform_5 -->
+            <a-entity position="0 0 0" >
+              <a-plane id="platform_5" 
+                  position="0 0 8" 
+                  rotation="-90 0 0" 
+                  width="4" 
+                  height="20" 
+                  color="#954D6E" 
+                  material="" 
+                  geometry=""></a-plane>
+              <a-animation attribute="position" 
+                      from="0 0 8" 
+                      to="0 -4 4" 
+                      dur="1000"
+                      direction="alternate-reverse"
+                      repeat="indefinite"></a-animation>
+            </a-entity>
+          </a-entity>
+          
+          <!-- 
+            Square Zero_Five 
+          -->
+          <a-entity position="0 0 200">
+            <!-- 
+                This section of code is for the moving shapes.
+
+                  -- Shape 1 
+                  -- Shape 2
+                  -- Shape 3
+            -->
+            <a-entity  position="0 0 0">
+              <a-entity position="0 0 0" >
+                <a-box position="-5.844592040302855 3.236704725633225 -3" 
+                    rotation="0 45 0" 
+                    color="#4CC3D9" 
+                    material="" 
+                    geometry=""> </a-box>
+                        <a-animation attribute="rotation"
+                                    dur="40000"
+                                    fill="forwards"
+                                    to="200 200 200"
+                                    repeat="indefinite"></a-animation>
+              </a-entity>
+
+              <a-entity  position="0 0 0">
+                <a-sphere position="0 1.25 -3.3734518622144902" 
+                        radius="1.25" 
+                        color="#EF2D5E" 
+                        material="" 
+                        geometry=""></a-sphere>
+                <a-animation attribute="rotation"
+                            dur="10000"
+                            fill="forwards"
+                            to="0 360 0"
+                            repeat="indefinite"></a-animation>
+              </a-entity>
+
+              <a-entity  position="0 0 0">
+                <a-cylinder position="4.972937126212932 0.75 -3"
+                        radius="0.5" 
+                        height="1.5" 
+                        color="#FFC65D" 
+                        material="" 
+                        geometry=""></a-cylinder>
+                  <a-animation attribute="rotation"
+                            dur="1000"
+                            fill="forwards"
+                            to="360 0 360"
+                            repeat="indefinite"></a-animation>
+              </a-entity>
+            </a-entity>
+            <!-- Side Swip-->
+            <a-cylinder color="#F55" 
+                      radius="0.1"
+                      animation="property: color; dir: alternate; dur: 1000;
+                                 easing: easeInSine; loop: true; to: #5F5"
+                      animation__scale="property: scale; dir: alternate; dur: 200;
+                                 easing: easeInSine; loop: true; to: 1.2 1 1.2"
+                      animation__yoyo="property: position; dir: alternate; dur: 1000;
+                                       easing: easeInSine; loop: true; to: 0 2 0">
+            </a-cylinder>
+            <!-- platform_1 -->
+            <a-entity >
+              <a-plane id="platform_1" 
+                    position="0 0 0" 
+                    rotation="-90 0 0" 
+                    width="4" 
+                    height="4" 
+                    color="#F91ACD" 
+                    material="" 
+                    geometry=""></a-plane>
+              <a-animation attribute="position" 
+                        from="0 0 0" 
+                        to="0 -4 0" 
+                        dur="1000"
+                        direction="alternate-reverse"
+                        repeat="indefinite"></a-animation>
+            </a-entity>
+            <!-- platform_2 -->
+            <a-entity >
+
+              <a-plane id="platform_2"
+                      position="4 0 -4" 
+                      rotation="-90 0 0" 
+                      width="4" 
+                      height="4" 
+                      color="#ECF91A" 
+                      material="" 
+                      geometry=""></a-plane>
+                <a-animation attribute="position" 
+                        from="4 0 -4" 
+                        to="0 -4 0" 
+                        dur="1000"
+                        direction="alternate-reverse"
+                        repeat="indefinite"></a-animation>
+            </a-entity>
+            <!-- platform_3 -->
+            <a-entity position="0 0 0" >
+              <a-plane id="platform_3"
+                      position="0 0 -4" 
+                      rotation="-90 0 0" 
+                      width="4" 
+                      height="4" 
+                      color="#223296" 
+                      material="" 
+                      geometry=""></a-plane>
+              <a-animation attribute="position" 
+                        from="0 0 -4" 
+                        to="0 -4 0" 
+                        dur="1000"
+                        direction="alternate-reverse"
+                        repeat="indefinite"></a-animation>
+            </a-entity>
+            <!-- platform_4 -->
+            <a-entity position="0 0 0" >
+              <a-plane id="platform_4"
+                      position="-4 0 -4" 
+                      rotation="-90 0 0" 
+                      width="4" 
+                      height="4" 
+                      color="#FD3E15" 
+                      material="" 
+                      geometry=""></a-plane>
+                <a-animation attribute="position" 
+                      from="-4 0 -4" 
+                      to="0 -4 0" 
+                      dur="1000"
+                      direction="alternate-reverse"
+                      repeat="indefinite"></a-animation>
+            </a-entity>
+            <!-- -platform_6 -->
+            <a-entity position="0 0 0" >
+              <a-plane id="platform_6" 
+                  position="0 0 -8" 
+                  rotation="-90 0 0" 
+                  width="4" 
+                  height="12" 
+                  color="#1ADEF9" 
+                  material="" 
+                  geometry=""></a-plane>
+              <a-animation attribute="position" 
+                      from="0 0 -8" 
+                      to="0 -4 -8" 
+                      dur="1000"
+                      direction="alternate-reverse"
+                      repeat="indefinite"></a-animation>
+            </a-entity>
+            <!-- -platform_5 -->
+            <a-entity position="0 0 0" >
+              <a-plane id="platform_5" 
+                  position="0 0 8" 
+                  rotation="-90 0 0" 
+                  width="4" 
+                  height="20" 
+                  color="#7BE9F4" 
+                  material="" 
+                  geometry=""></a-plane>
+              <a-animation attribute="position" 
+                      from="0 0 8" 
+                      to="0 -4 4" 
+                      dur="1000"
+                      direction="alternate-reverse"
+                      repeat="indefinite"></a-animation>
+            </a-entity>
+          </a-entity>
+          
+          <!-- Square Zero_Six -->
+          <a-entity position="0 0 250">
+            <!-- 
+                This section of code is for the moving shapes.
+
+                  -- Shape 1 
+                  -- Shape 2
+                  -- Shape 3
+            -->
+            <a-entity  position="0 0 0">
+              <a-entity  position="0 0 0">
+                <a-box position="-5.844592040302855 3.236704725633225 -3" 
+                      rotation="0 45 0" 
+                      color="#4CC3D9" 
+                      material="" 
+                      geometry=""> </a-box>
+                        <a-animation attribute="rotation"
+                                  dur="40000"
+                                  fill="forwards"
+                                  to="200 200 200"
+                                  repeat="indefinite"></a-animation>
+              </a-entity>
+
+              <a-entity  position="0 0 0">
+                <a-sphere position="0 1.25 -3.3734518622144902" 
+                        radius="1.25" 
+                        color="#EF2D5E" 
+                        material="" 
+                        geometry=""></a-sphere>
+                <a-animation attribute="rotation"
+                            dur="80000"
+                            fill="forwards"
+                            to="0 360 0"
+                            repeat="indefinite"></a-animation>
+              </a-entity>
+
+              <a-entity  position="0 0 0">
+                <a-cylinder position="4.972937126212932 0.75 -3"
+                          radius="0.5" 
+                          height="1.5" 
+                          color="#FFC65D" 
+                          material="" 
+                          geometry=""></a-cylinder>
+                  <a-animation attribute="rotation"
+                       dur="1000"
+                       fill="forwards"
+                       to="360 0 360"
+                       repeat="indefinite"></a-animation>
+              </a-entity>
+            </a-entity>
+            <!-- Side Swip-->
+            <a-cylinder color="#F55" 
+                      radius="0.1"
+                      animation="property: color; dir: alternate; dur: 1000;
+                                 easing: easeInSine; loop: true; to: #5F5"
+                      animation__scale="property: scale; dir: alternate; dur: 200;
+                                 easing: easeInSine; loop: true; to: 1.2 1 1.2"
+                      animation__yoyo="property: position; dir: alternate; dur: 1000;
+                                       easing: easeInSine; loop: true; to: 0 2 0">
+            </a-cylinder>
+            <!-- platform_1 -->
+            <a-entity >
+              <a-plane id="platform_1" 
+                    position="0 0 0" 
+                    rotation="-90 0 0" 
+                    width="4" 
+                    height="4" 
+                    color="#F91ACD" 
+                    material="" 
+                    geometry=""></a-plane>
+              <a-animation attribute="position" 
+                        from="0 0 0" 
+                        to="0 -4 0" 
+                        dur="1000"
+                        direction="alternate-reverse"
+                        repeat="indefinite"></a-animation>
+            </a-entity>
+            <!-- platform_2 -->
+            <a-entity >
+
+              <a-plane id="platform_2"
+                      position="4 0 -4" 
+                      rotation="-90 0 0" 
+                      width="4" 
+                      height="4" 
+                      color="#ECF91A" 
+                      material="" 
+                      geometry=""></a-plane>
+                <a-animation attribute="position" 
+                        from="4 0 -4" 
+                        to="0 -4 0" 
+                        dur="1000"
+                        direction="alternate-reverse"
+                        repeat="indefinite"></a-animation>
+            </a-entity>
+            <!-- platform_3 -->
+            <a-entity position="0 0 0" >
+              <a-plane id="platform_3"
+                      position="0 0 -4" 
+                      rotation="-90 0 0" 
+                      width="4" 
+                      height="4" 
+                      color="#223296" 
+                      material="" 
+                      geometry=""></a-plane>
+              <a-animation attribute="position" 
+                        from="0 0 -4" 
+                        to="0 -4 0" 
+                        dur="1000"
+                        direction="alternate-reverse"
+                        repeat="indefinite"></a-animation>
+            </a-entity>
+            <!-- platform_4 -->
+            <a-entity position="0 0 0" >
+              <a-plane id="platform_4"
+                      position="-4 0 -4" 
+                      rotation="-90 0 0" 
+                      width="4" 
+                      height="4" 
+                      color="#FD3E15" 
+                      material="" 
+                      geometry=""></a-plane>
+                <a-animation attribute="position" 
+                      from="-4 0 -4" 
+                      to="0 -4 0" 
+                      dur="1000"
+                      direction="alternate-reverse"
+                      repeat="indefinite"></a-animation>
+            </a-entity>
+            <!-- -platform_6 -->
+            <a-entity position="0 0 0" >
+              <a-plane id="platform_6" 
+                  position="0 0 -8" 
+                  rotation="-90 0 0" 
+                  width="4" 
+                  height="12" 
+                  color="#1ADEF9" 
+                  material="" 
+                  geometry=""></a-plane>
+              <a-animation attribute="position" 
+                      from="0 0 -8" 
+                      to="0 -4 -8" 
+                      dur="1000"
+                      direction="alternate-reverse"
+                      repeat="indefinite"></a-animation>
+            </a-entity>
+            <!-- -platform_5 -->
+            <a-entity position="0 0 0" >
+              <a-plane id="platform_5" 
+                  position="0 0 8" 
+                  rotation="-90 0 0" 
+                  width="4" 
+                  height="20" 
+                  color="#FFEC83" 
+                  material="" 
+                  geometry=""></a-plane>
+              <a-animation attribute="position" 
+                      from="0 0 8" 
+                      to="0 -4 4" 
+                      dur="1000"
+                      direction="alternate-reverse"
+                      repeat="indefinite"></a-animation>
+            </a-entity>
+          </a-entity>
+
+        </a-entity>
+        <!-- w
+            This section of the code is for something blah blah blah
+        -->
+        <a-entity position="0 0 0" >
+          <!-- Square Zero_Zero -->
+          <a-entity position="20 0 0">
+            <!-- Side Swip-->
+            <a-cylinder color="#F55" 
+                      radius="0.1"
+                      animation="property: color; dir: alternate; dur: 1000;
+                                 easing: easeInSine; loop: true; to: #5F5"
+                      animation__scale="property: scale; dir: alternate; dur: 200;
+                                 easing: easeInSine; loop: true; to: 1.2 1 1.2"
+                      animation__yoyo="property: position; dir: alternate; dur: 1000;
+                                       easing: easeInSine; loop: true; to: 0 2 0">
+            </a-cylinder>
+            <!-- platform_1 -->
+            <a-entity >
+              <a-plane id="platform_1" 
+                    position="0 0 0" 
+                    rotation="-90 0 0" 
+                    width="4" 
+                    height="4" 
+                    color="#F91ACD" 
+                    material="" 
+                    geometry=""></a-plane>
+              <a-animation attribute="position" 
+                        from="0 0 0" 
+                        to="0 -4 0" 
+                        dur="1000"
+                        direction="alternate-reverse"
+                        repeat="indefinite"></a-animation>
+            </a-entity>
+            <!-- platform_2 -->
+            <a-entity >
+
+              <a-plane id="platform_2"
+                      position="4 0 -4" 
+                      rotation="-90 0 0" 
+                      width="4" 
+                      height="4" 
+                      color="#ECF91A" 
+                      material="" 
+                      geometry=""></a-plane>
+                <a-animation attribute="position" 
+                        from="4 0 -4" 
+                        to="0 -4 0" 
+                        dur="1000"
+                        direction="alternate-reverse"
+                        repeat="indefinite"></a-animation>
+            </a-entity>
+            <!-- platform_3 -->
+            <a-entity position="0 0 0" >
+              <a-plane id="platform_3"
+                      position="0 0 -4" 
+                      rotation="-90 0 0" 
+                      width="4" 
+                      height="4" 
+                      color="#223296" 
+                      material="" 
+                      geometry=""></a-plane>
+              <a-animation attribute="position" 
+                        from="0 0 -4" 
+                        to="0 -4 0" 
+                        dur="1000"
+                        direction="alternate-reverse"
+                        repeat="indefinite"></a-animation>
+            </a-entity>
+            <!-- platform_4 -->
+            <a-entity position="0 0 0" >
+              <a-plane id="platform_4"
+                      position="-4 0 -4" 
+                      rotation="-90 0 0" 
+                      width="4" 
+                      height="4" 
+                      color="#FD3E15" 
+                      material="" 
+                      geometry=""></a-plane>
+                <a-animation attribute="position" 
+                      from="-4 0 -4" 
+                      to="0 -4 0" 
+                      dur="1000"
+                      direction="alternate-reverse"
+                      repeat="indefinite"></a-animation>
+            </a-entity>
+            <!-- -platform_6 -->
+            <a-entity position="0 0 0" >
+              <a-plane id="platform_6" 
+                  position="0 0 -8" 
+                  rotation="-90 0 0" 
+                  width="4" 
+                  height="12" 
+                  color="#1ADEF9" 
+                  material="" 
+                  geometry=""></a-plane>
+              <a-animation attribute="position" 
+                      from="0 0 -8" 
+                      to="0 -4 -8" 
+                      dur="1000"
+                      direction="alternate-reverse"
+                      repeat="indefinite"></a-animation>
+            </a-entity>
+            <!-- -platform_5 -->
+            <a-entity position="0 0 0" >
+              <a-plane id="platform_5" 
+                  position="0 0 8" 
+                  rotation="-90 0 0" 
+                  width="4" 
+                  height="20" 
+                  color="#9F0808" 
+                  material="" 
+                  geometry=""></a-plane>
+              <a-animation attribute="position" 
+                      from="0 0 8" 
+                      to="0 -4 4" 
+                      dur="1000"
+                      direction="alternate-reverse"
+                      repeat="indefinite"></a-animation>
+            </a-entity>
+          </a-entity>
+          <!-- Square Zero_Two -->
+          <a-entity position="20 0 50">
+            <!-- Side Swip-->
+            <a-cylinder color="#F55" 
+                      radius="0.1"
+                      animation="property: color; dir: alternate; dur: 1000;
+                                 easing: easeInSine; loop: true; to: #5F5"
+                      animation__scale="property: scale; dir: alternate; dur: 200;
+                                 easing: easeInSine; loop: true; to: 1.2 1 1.2"
+                      animation__yoyo="property: position; dir: alternate; dur: 1000;
+                                       easing: easeInSine; loop: true; to: 0 2 0">
+            </a-cylinder>
+            <!-- platform_1 -->
+            <a-entity >
+              <a-plane id="platform_1" 
+                    position="0 0 0" 
+                    rotation="-90 0 0" 
+                    width="4" 
+                    height="4" 
+                    color="#F91ACD" 
+                    material="" 
+                    geometry=""></a-plane>
+              <a-animation attribute="position" 
+                        from="0 0 0" 
+                        to="0 -4 0" 
+                        dur="1000"
+                        direction="alternate-reverse"
+                        repeat="indefinite"></a-animation>
+            </a-entity>
+            <!-- platform_2 -->
+            <a-entity >
+              <a-plane id="platform_2"
+                      position="4 0 -4" 
+                      rotation="-90 0 0" 
+                      width="4" 
+                      height="4" 
+                      color="#ECF91A" 
+                      material="" 
+                      geometry=""></a-plane>
+                <a-animation attribute="position" 
+                        from="4 0 -4" 
+                        to="0 -4 0" 
+                        dur="1000"
+                        direction="alternate-reverse"
+                        repeat="indefinite"></a-animation>
+            </a-entity>
+            <!-- platform_3 -->
+            <a-entity position="0 0 0" >
+              <a-plane id="platform_3"
+                      position="0 0 -4" 
+                      rotation="-90 0 0" 
+                      width="4" 
+                      height="4" 
+                      color="#223296" 
+                      material="" 
+                      geometry=""></a-plane>
+              <a-animation attribute="position" 
+                        from="0 0 -4" 
+                        to="0 -4 0" 
+                        dur="1000"
+                        direction="alternate-reverse"
+                        repeat="indefinite"></a-animation>
+            </a-entity>
+            <!-- platform_4 -->
+            <a-entity position="0 0 0" >
+              <a-plane id="platform_4"
+                      position="-4 0 -4" 
+                      rotation="-90 0 0" 
+                      width="4" 
+                      height="4" 
+                      color="#FD3E15" 
+                      material="" 
+                      geometry=""></a-plane>
+                <a-animation attribute="position" 
+                      from="-4 0 -4" 
+                      to="0 -4 0" 
+                      dur="1000"
+                      direction="alternate-reverse"
+                      repeat="indefinite"></a-animation>
+            </a-entity>
+            <!-- -platform_6 -->
+            <a-entity position="0 0 0" >
+              <a-plane id="platform_6" 
+                  position="0 0 -8" 
+                  rotation="-90 0 0" 
+                  width="4" 
+                  height="12" 
+                  color="#1ADEF9" 
+                  material="" 
+                  geometry=""></a-plane>
+              <a-animation attribute="position" 
+                      from="0 0 -8" 
+                      to="0 -4 -8" 
+                      dur="1000"
+                      direction="alternate-reverse"
+                      repeat="indefinite"></a-animation>
+            </a-entity>
+            <!-- -platform_5 -->
+            <a-entity position="0 0 0" >
+              <a-plane id="platform_5" 
+                  position="0 0 8" 
+                  rotation="-90 0 0" 
+                  width="4" 
+                  height="20" 
+                  color="#9F0821" 
+                  material="" 
+                  geometry=""></a-plane>
+              <a-animation attribute="position" 
+                      from="0 0 8" 
+                      to="0 -4 4" 
+                      dur="1000"
+                      direction="alternate-reverse"
+                      repeat="indefinite"></a-animation>
+            </a-entity>
+          </a-entity>
+          <!-- Square Zero_Three -->
+          <a-entity position="20 0 100">
+            <!-- Side Swip-->
+            <a-cylinder color="#F55" 
+                      radius="0.1"
+                      animation="property: color; dir: alternate; dur: 1000;
+                                 easing: easeInSine; loop: true; to: #5F5"
+                      animation__scale="property: scale; dir: alternate; dur: 200;
+                                 easing: easeInSine; loop: true; to: 1.2 1 1.2"
+                      animation__yoyo="property: position; dir: alternate; dur: 1000;
+                                       easing: easeInSine; loop: true; to: 0 2 0">
+            </a-cylinder>
+            <!-- platform_1 -->
+            <a-entity >
+              <a-plane id="platform_1" 
+                    position="0 0 0" 
+                    rotation="-90 0 0" 
+                    width="4" 
+                    height="4" 
+                    color="#F91ACD" 
+                    material="" 
+                    geometry=""></a-plane>
+              <a-animation attribute="position" 
+                        from="0 0 0" 
+                        to="0 -4 0" 
+                        dur="1000"
+                        direction="alternate-reverse"
+                        repeat="indefinite"></a-animation>
+            </a-entity>
+            <!-- platform_2 -->
+            <a-entity >
+
+              <a-plane id="platform_2"
+                      position="4 0 -4" 
+                      rotation="-90 0 0" 
+                      width="4" 
+                      height="4" 
+                      color="#ECF91A" 
+                      material="" 
+                      geometry=""></a-plane>
+                <a-animation attribute="position" 
+                        from="4 0 -4" 
+                        to="0 -4 0" 
+                        dur="1000"
+                        direction="alternate-reverse"
+                        repeat="indefinite"></a-animation>
+            </a-entity>
+            <!-- platform_3 -->
+            <a-entity position="0 0 0" >
+              <a-plane id="platform_3"
+                      position="0 0 -4" 
+                      rotation="-90 0 0" 
+                      width="4" 
+                      height="4" 
+                      color="#223296" 
+                      material="" 
+                      geometry=""></a-plane>
+              <a-animation attribute="position" 
+                        from="0 0 -4" 
+                        to="0 -4 0" 
+                        dur="1000"
+                        direction="alternate-reverse"
+                        repeat="indefinite"></a-animation>
+            </a-entity>
+            <!-- platform_4 -->
+            <a-entity position="0 0 0" >
+              <a-plane id="platform_4"
+                      position="-4 0 -4" 
+                      rotation="-90 0 0" 
+                      width="4" 
+                      height="4" 
+                      color="#FD3E15" 
+                      material="" 
+                      geometry=""></a-plane>
+                <a-animation attribute="position" 
+                      from="-4 0 -4" 
+                      to="0 -4 0" 
+                      dur="1000"
+                      direction="alternate-reverse"
+                      repeat="indefinite"></a-animation>
+            </a-entity>
+            <!-- -platform_6 -->
+            <a-entity position="0 0 0" >
+              <a-plane id="platform_6" 
+                  position="0 0 -8" 
+                  rotation="-90 0 0" 
+                  width="4" 
+                  height="12" 
+                  color="#1ADEF9" 
+                  material="" 
+                  geometry=""></a-plane>
+              <a-animation attribute="position" 
+                      from="0 0 -8" 
+                      to="0 -4 -8" 
+                      dur="1000"
+                      direction="alternate-reverse"
+                      repeat="indefinite"></a-animation>
+            </a-entity>
+            <!-- -platform_5 -->
+            <a-entity position="0 0 0" >
+              <a-plane id="platform_5" 
+                  position="0 0 8" 
+                  rotation="-90 0 0" 
+                  width="4" 
+                  height="20" 
+                  color="#D64BC1" 
+                  material="" 
+                  geometry=""></a-plane>
+              <a-animation attribute="position" 
+                      from="0 0 8" 
+                      to="0 -4 4" 
+                      dur="1000"
+                      direction="alternate-reverse"
+                      repeat="indefinite"></a-animation>
+            </a-entity>
+          </a-entity>
+          <!-- Square Zero_Four -->
+          <a-entity position="20 0 150">
+            <!-- Side Swip-->
+            <a-cylinder color="#F55" 
+                      radius="0.1"
+                      animation="property: color; dir: alternate; dur: 1000;
+                                 easing: easeInSine; loop: true; to: #5F5"
+                      animation__scale="property: scale; dir: alternate; dur: 200;
+                                 easing: easeInSine; loop: true; to: 1.2 1 1.2"
+                      animation__yoyo="property: position; dir: alternate; dur: 1000;
+                                       easing: easeInSine; loop: true; to: 0 2 0">
+            </a-cylinder>
+            <!-- platform_1 -->
+            <a-entity >
+              <a-plane id="platform_1" 
+                    position="0 0 0" 
+                    rotation="-90 0 0" 
+                    width="4" 
+                    height="4" 
+                    color="#F91ACD" 
+                    material="" 
+                    geometry=""></a-plane>
+              <a-animation attribute="position" 
+                        from="0 0 0" 
+                        to="0 -4 0" 
+                        dur="1000"
+                        direction="alternate-reverse"
+                        repeat="indefinite"></a-animation>
+            </a-entity>
+            <!-- platform_2 -->
+            <a-entity >
+
+              <a-plane id="platform_2"
+                      position="4 0 -4" 
+                      rotation="-90 0 0" 
+                      width="4" 
+                      height="4" 
+                      color="#ECF91A" 
+                      material="" 
+                      geometry=""></a-plane>
+                <a-animation attribute="position" 
+                        from="4 0 -4" 
+                        to="0 -4 0" 
+                        dur="1000"
+                        direction="alternate-reverse"
+                        repeat="indefinite"></a-animation>
+            </a-entity>
+            <!-- platform_3 -->
+            <a-entity position="0 0 0" >
+              <a-plane id="platform_3"
+                      position="0 0 -4" 
+                      rotation="-90 0 0" 
+                      width="4" 
+                      height="4" 
+                      color="#223296" 
+                      material="" 
+                      geometry=""></a-plane>
+              <a-animation attribute="position" 
+                        from="0 0 -4" 
+                        to="0 -4 0" 
+                        dur="1000"
+                        direction="alternate-reverse"
+                        repeat="indefinite"></a-animation>
+            </a-entity>
+            <!-- platform_4 -->
+            <a-entity position="0 0 0" >
+              <a-plane id="platform_4"
+                      position="-4 0 -4" 
+                      rotation="-90 0 0" 
+                      width="4" 
+                      height="4" 
+                      color="#FD3E15" 
+                      material="" 
+                      geometry=""></a-plane>
+                <a-animation attribute="position" 
+                      from="-4 0 -4" 
+                      to="0 -4 0" 
+                      dur="1000"
+                      direction="alternate-reverse"
+                      repeat="indefinite"></a-animation>
+            </a-entity>
+            <!-- -platform_6 -->
+            <a-entity position="0 0 0" >
+              <a-plane id="platform_6" 
+                  position="0 0 -8" 
+                  rotation="-90 0 0" 
+                  width="4" 
+                  height="12" 
+                  color="#1ADEF9" 
+                  material="" 
+                  geometry=""></a-plane>
+              <a-animation attribute="position" 
+                      from="0 0 -8" 
+                      to="0 -4 -8" 
+                      dur="1000"
+                      direction="alternate-reverse"
+                      repeat="indefinite"></a-animation>
+            </a-entity>
+            <!-- -platform_5 -->
+            <a-entity position="0 0 0" >
+              <a-plane id="platform_5" 
+                  position="0 0 8" 
+                  rotation="-90 0 0" 
+                  width="4" 
+                  height="20" 
+                  color="#4B85D6" 
+                  material="" 
+                  geometry=""></a-plane>
+              <a-animation attribute="position" 
+                      from="0 0 8" 
+                      to="0 -4 4" 
+                      dur="1000"
+                      direction="alternate-reverse"
+                      repeat="indefinite"></a-animation>
+            </a-entity>
+          </a-entity>
+          <!-- Square Zero_Five -->
+          <a-entity position="20 0 200">
+            <!-- Side Swip-->
+            <a-cylinder color="#F55" 
+                      radius="0.1"
+                      animation="property: color; dir: alternate; dur: 1000;
+                                 easing: easeInSine; loop: true; to: #5F5"
+                      animation__scale="property: scale; dir: alternate; dur: 200;
+                                 easing: easeInSine; loop: true; to: 1.2 1 1.2"
+                      animation__yoyo="property: position; dir: alternate; dur: 1000;
+                                       easing: easeInSine; loop: true; to: 0 2 0">
+            </a-cylinder>
+            <!-- platform_1 -->
+            <a-entity >
+              <a-plane id="platform_1" 
+                    position="0 0 0" 
+                    rotation="-90 0 0" 
+                    width="4" 
+                    height="4" 
+                    color="#F91ACD" 
+                    material="" 
+                    geometry=""></a-plane>
+              <a-animation attribute="position" 
+                        from="0 0 0" 
+                        to="0 -4 0" 
+                        dur="1000"
+                        direction="alternate-reverse"
+                        repeat="indefinite"></a-animation>
+            </a-entity>
+            <!-- platform_2 -->
+            <a-entity >
+
+              <a-plane id="platform_2"
+                      position="4 0 -4" 
+                      rotation="-90 0 0" 
+                      width="4" 
+                      height="4" 
+                      color="#ECF91A" 
+                      material="" 
+                      geometry=""></a-plane>
+                <a-animation attribute="position" 
+                        from="4 0 -4" 
+                        to="0 -4 0" 
+                        dur="1000"
+                        direction="alternate-reverse"
+                        repeat="indefinite"></a-animation>
+            </a-entity>
+            <!-- platform_3 -->
+            <a-entity position="0 0 0" >
+              <a-plane id="platform_3"
+                      position="0 0 -4" 
+                      rotation="-90 0 0" 
+                      width="4" 
+                      height="4" 
+                      color="#223296" 
+                      material="" 
+                      geometry=""></a-plane>
+              <a-animation attribute="position" 
+                        from="0 0 -4" 
+                        to="0 -4 0" 
+                        dur="1000"
+                        direction="alternate-reverse"
+                        repeat="indefinite"></a-animation>
+            </a-entity>
+            <!-- platform_4 -->
+            <a-entity position="0 0 0" >
+              <a-plane id="platform_4"
+                      position="-4 0 -4" 
+                      rotation="-90 0 0" 
+                      width="4" 
+                      height="4" 
+                      color="#FD3E15" 
+                      material="" 
+                      geometry=""></a-plane>
+                <a-animation attribute="position" 
+                      from="-4 0 -4" 
+                      to="0 -4 0" 
+                      dur="1000"
+                      direction="alternate-reverse"
+                      repeat="indefinite"></a-animation>
+            </a-entity>
+            <!-- -platform_6 -->
+            <a-entity position="0 0 0" >
+              <a-plane id="platform_6" 
+                  position="0 0 -8" 
+                  rotation="-90 0 0" 
+                  width="4" 
+                  height="12" 
+                  color="#1ADEF9" 
+                  material="" 
+                  geometry=""></a-plane>
+              <a-animation attribute="position" 
+                      from="0 0 -8" 
+                      to="0 -4 -8" 
+                      dur="1000"
+                      direction="alternate-reverse"
+                      repeat="indefinite"></a-animation>
+            </a-entity>
+            <!-- -platform_5 -->
+            <a-entity position="0 0 0" >
+              <a-plane id="platform_5" 
+                  position="0 0 8" 
+                  rotation="-90 0 0" 
+                  width="4" 
+                  height="20" 
+                  color="#4BD6D1" 
+                  material="" 
+                  geometry=""></a-plane>
+              <a-animation attribute="position" 
+                      from="0 0 8" 
+                      to="0 -4 4" 
+                      dur="1000"
+                      direction="alternate-reverse"
+                      repeat="indefinite"></a-animation>
+            </a-entity>
+          </a-entity>
+          <!-- Square Zero_Six -->
+          <a-entity position="20 0 250">
+            <!-- Side Swip-->
+            <a-cylinder color="#F55" 
+                      radius="0.1"
+                      animation="property: color; dir: alternate; dur: 1000;
+                                 easing: easeInSine; loop: true; to: #5F5"
+                      animation__scale="property: scale; dir: alternate; dur: 200;
+                                 easing: easeInSine; loop: true; to: 1.2 1 1.2"
+                      animation__yoyo="property: position; dir: alternate; dur: 1000;
+                                       easing: easeInSine; loop: true; to: 0 2 0">
+            </a-cylinder>
+            <!-- platform_1 -->
+            <a-entity >
+              <a-plane id="platform_1" 
+                    position="0 0 0" 
+                    rotation="-90 0 0" 
+                    width="4" 
+                    height="4" 
+                    color="#F91ACD" 
+                    material="" 
+                    geometry=""></a-plane>
+              <a-animation attribute="position" 
+                        from="0 0 0" 
+                        to="0 -4 0" 
+                        dur="1000"
+                        direction="alternate-reverse"
+                        repeat="indefinite"></a-animation>
+            </a-entity>
+            <!-- platform_2 -->
+            <a-entity >
+
+              <a-plane id="platform_2"
+                      position="4 0 -4" 
+                      rotation="-90 0 0" 
+                      width="4" 
+                      height="4" 
+                      color="#ECF91A" 
+                      material="" 
+                      geometry=""></a-plane>
+                <a-animation attribute="position" 
+                        from="4 0 -4" 
+                        to="0 -4 0" 
+                        dur="1000"
+                        direction="alternate-reverse"
+                        repeat="indefinite"></a-animation>
+            </a-entity>
+            <!-- platform_3 -->
+            <a-entity position="0 0 0" >
+              <a-plane id="platform_3"
+                      position="0 0 -4" 
+                      rotation="-90 0 0" 
+                      width="4" 
+                      height="4" 
+                      color="#223296" 
+                      material="" 
+                      geometry=""></a-plane>
+              <a-animation attribute="position" 
+                        from="0 0 -4" 
+                        to="0 -4 0" 
+                        dur="1000"
+                        direction="alternate-reverse"
+                        repeat="indefinite"></a-animation>
+            </a-entity>
+            <!-- platform_4 -->
+            <a-entity position="0 0 0" >
+              <a-plane id="platform_4"
+                      position="-4 0 -4" 
+                      rotation="-90 0 0" 
+                      width="4" 
+                      height="4" 
+                      color="#FD3E15" 
+                      material="" 
+                      geometry=""></a-plane>
+                <a-animation attribute="position" 
+                      from="-4 0 -4" 
+                      to="0 -4 0" 
+                      dur="1000"
+                      direction="alternate-reverse"
+                      repeat="indefinite"></a-animation>
+            </a-entity>
+            <!-- -platform_6 -->
+            <a-entity position="0 0 0" >
+              <a-plane id="platform_6" 
+                  position="0 0 -8" 
+                  rotation="-90 0 0" 
+                  width="4" 
+                  height="12" 
+                  color="#1ADEF9" 
+                  material="" 
+                  geometry=""></a-plane>
+              <a-animation attribute="position" 
+                      from="0 0 -8" 
+                      to="0 -4 -8" 
+                      dur="1000"
+                      direction="alternate-reverse"
+                      repeat="indefinite"></a-animation>
+            </a-entity>
+            <!-- -platform_5 -->
+            <a-entity position="0 0 0" >
+              <a-plane id="platform_5" 
+                  position="0 0 8" 
+                  rotation="-90 0 0" 
+                  width="4" 
+                  height="20" 
+                  color="#A7CC07" 
+                  material="" 
+                  geometry=""></a-plane>
+              <a-animation attribute="position" 
+                      from="0 0 8" 
+                      to="0 -4 4" 
+                      dur="1000"
+                      direction="alternate-reverse"
+                      repeat="indefinite"></a-animation>
+            </a-entity>
+          </a-entity>
+        </a-entity>
+        <!-- 
+            This section of the code is for something blah blah blah
+        -->
+        <a-entity position="0 0 0" >
+          <!-- Square Zero_Zero -->
+          <a-entity position="40 0 0">
+            <!-- 
+                This section of code is for the moving shapes.
+
+                  -- Shape 1 
+                  -- Shape 2
+                  -- Shape 3
+            -->
+            <a-entity  position="0 0 0">
+              <a-entity  position="0 0 0">
+                <a-box position="-5.844592040302855 3.236704725633225 -3" 
+                      rotation="0 45 0" 
+                      color="#4CC3D9" 
+                      material="" 
+                      geometry=""> </a-box>
+                        <a-animation 
+                                attribute="rotation"
+                                dur="20000"
+                                fill="forwards"
+                                to="200 200 200"
+                                repeat="indefinite"></a-animation>
+              </a-entity>
+
+              <a-entity  position="0 0 0">
+                <a-sphere position="0 1.25 -3.3734518622144902" 
+                        radius="1.25" 
+                        color="#EF2D5E" 
+                        material="" 
+                        geometry=""></a-sphere>
+                <a-animation attribute="rotation"
+                       dur="40000"
+                       fill="forwards"
+                       to="0 360 0"
+                       repeat="indefinite"></a-animation>
+              </a-entity>
+
+              <a-entity  position="0 0 0">
+                <a-cylinder position="4.972937126212932 0.75 -3" 
+                          radius="0.5" 
+                          height="1.5" 
+                          color="#FFC65D" material="" geometry=""></a-cylinder>
+                  <a-animation attribute="rotation"
+                       dur="2000"
+                       fill="forwards"
+                       to="360 0 360"
+                       repeat="indefinite"></a-animation>
+              </a-entity>
+            </a-entity>
+            <!-- Side Swip-->
+            <a-cylinder color="#F55" 
+                      radius="0.1"
+                      animation="property: color; dir: alternate; dur: 1000;
+                                 easing: easeInSine; loop: true; to: #5F5"
+                      animation__scale="property: scale; dir: alternate; dur: 200;
+                                 easing: easeInSine; loop: true; to: 1.2 1 1.2"
+                      animation__yoyo="property: position; dir: alternate; dur: 1000;
+                                       easing: easeInSine; loop: true; to: 0 2 0">
+            </a-cylinder>
+            <!-- platform_1 -->
+            <a-entity >
+              <a-plane id="platform_1" 
+                    position="0 0 0" 
+                    rotation="-90 0 0" 
+                    width="4" 
+                    height="4" 
+                    color="#F91ACD" 
+                    material="" 
+                    geometry=""></a-plane>
+              <a-animation attribute="position" 
+                        from="0 0 0" 
+                        to="0 -4 0" 
+                        dur="1000"
+                        direction="alternate-reverse"
+                        repeat="indefinite"></a-animation>
+            </a-entity>
+            <!-- platform_2 -->
+            <a-entity >
+
+              <a-plane id="platform_2"
+                      position="4 0 -4" 
+                      rotation="-90 0 0" 
+                      width="4" 
+                      height="4" 
+                      color="#ECF91A" 
+                      material="" 
+                      geometry=""></a-plane>
+                <a-animation attribute="position" 
+                        from="4 0 -4" 
+                        to="0 -4 0" 
+                        dur="1000"
+                        direction="alternate-reverse"
+                        repeat="indefinite"></a-animation>
+            </a-entity>
+            <!-- platform_3 -->
+            <a-entity position="0 0 0" >
+              <a-plane id="platform_3"
+                      position="0 0 -4" 
+                      rotation="-90 0 0" 
+                      width="4" 
+                      height="4" 
+                      color="#223296" 
+                      material="" 
+                      geometry=""></a-plane>
+              <a-animation attribute="position" 
+                        from="0 0 -4" 
+                        to="0 -4 0" 
+                        dur="1000"
+                        direction="alternate-reverse"
+                        repeat="indefinite"></a-animation>
+            </a-entity>
+            <!-- platform_4 -->
+            <a-entity position="0 0 0" >
+              <a-plane id="platform_4"
+                      position="-4 0 -4" 
+                      rotation="-90 0 0" 
+                      width="4" 
+                      height="4" 
+                      color="#FD3E15" 
+                      material="" 
+                      geometry=""></a-plane>
+                <a-animation attribute="position" 
+                      from="-4 0 -4" 
+                      to="0 -4 0" 
+                      dur="1000"
+                      direction="alternate-reverse"
+                      repeat="indefinite"></a-animation>
+            </a-entity>
+            <!-- -platform_6 -->
+            <a-entity position="0 0 0" >
+              <a-plane id="platform_6" 
+                  position="0 0 -8" 
+                  rotation="-90 0 0" 
+                  width="4" 
+                  height="12" 
+                  color="#1ADEF9" 
+                  material="" 
+                  geometry=""></a-plane>
+              <a-animation attribute="position" 
+                      from="0 0 -8" 
+                      to="0 -4 -8" 
+                      dur="1000"
+                      direction="alternate-reverse"
+                      repeat="indefinite"></a-animation>
+            </a-entity>
+            <!-- -platform_5 -->
+            <a-entity position="0 0 0" >
+              <a-plane id="platform_5" 
+                  position="0 0 8" 
+                  rotation="-90 0 0" 
+                  width="4" 
+                  height="20" 
+                  color="#FFDD5B" 
+                  material="" 
+                  geometry=""></a-plane>
+              <a-animation attribute="position" 
+                      from="0 0 8" 
+                      to="0 -4 4" 
+                      dur="1000"
+                      direction="alternate-reverse"
+                      repeat="indefinite"></a-animation>
+            </a-entity>
+          </a-entity>
+          <!-- Square Zero_Two -->
+          <a-entity position="40 0 50">
+
+
+            <!-- 
+                This section of code is for the moving shapes.
+
+                  -- Shape 1 
+                  -- Shape 2
+                  -- Shape 3
+            -->
+            <a-entity  position="0 0 0">
+              <a-entity  position="0 0 0">
+                <a-box position="-5.844592040302855 3.236704725633225 -3" 
+                      rotation="0 45 0" 
+                      color="#4CC3D9" 
+                      material="" 
+                      geometry=""> </a-box>
+                        <a-animation 
+                                attribute="rotation"
+                                dur="80000"
+                                fill="forwards"
+                                to="200 200 200"
+                                repeat="indefinite"></a-animation>
+              </a-entity>
+
+              <a-entity  position="0 0 0">
+                <a-sphere position="0 1.25 -3.3734518622144902" 
+                        radius="1.25" 
+                        color="#EF2D5E" 
+                        material="" 
+                        geometry=""></a-sphere>
+                <a-animation attribute="rotation"
+                       dur="20000"
+                       fill="forwards"
+                       to="0 360 0"
+                       repeat="indefinite"></a-animation>
+              </a-entity>
+
+              <a-entity  position="0 0 0">
+                <a-cylinder position="4.972937126212932 0.75 -3" 
+                          radius="0.5" 
+                          height="1.5" 
+                          color="#FFC65D" material="" geometry=""></a-cylinder>
+                  <a-animation attribute="rotation"
+                       dur="1000"
+                       fill="forwards"
+                       to="360 0 360"
+                       repeat="indefinite"></a-animation>
+              </a-entity>
+            </a-entity>
+
+            <!-- Side Swip-->
+            <a-cylinder color="#F55" 
+                      radius="0.1"
+                      animation="property: color; dir: alternate; dur: 1000;
+                                 easing: easeInSine; loop: true; to: #5F5"
+                      animation__scale="property: scale; dir: alternate; dur: 200;
+                                 easing: easeInSine; loop: true; to: 1.2 1 1.2"
+                      animation__yoyo="property: position; dir: alternate; dur: 1000;
+                                       easing: easeInSine; loop: true; to: 0 2 0">
+            </a-cylinder>
+            <!-- platform_1 -->
+            <a-entity >
+              <a-plane id="platform_1" 
+                    position="0 0 0" 
+                    rotation="-90 0 0" 
+                    width="4" 
+                    height="4" 
+                    color="#F91ACD" 
+                    material="" 
+                    geometry=""></a-plane>
+              <a-animation attribute="position" 
+                        from="0 0 0" 
+                        to="0 -4 0" 
+                        dur="1000"
+                        direction="alternate-reverse"
+                        repeat="indefinite"></a-animation>
+            </a-entity>
+            <!-- platform_2 -->
+            <a-entity >
+
+              <a-plane id="platform_2"
+                      position="4 0 -4" 
+                      rotation="-90 0 0" 
+                      width="4" 
+                      height="4" 
+                      color="#ECF91A" 
+                      material="" 
+                      geometry=""></a-plane>
+                <a-animation attribute="position" 
+                        from="4 0 -4" 
+                        to="0 -4 0" 
+                        dur="1000"
+                        direction="alternate-reverse"
+                        repeat="indefinite"></a-animation>
+            </a-entity>
+            <!-- platform_3 -->
+            <a-entity position="0 0 0" >
+              <a-plane id="platform_3"
+                      position="0 0 -4" 
+                      rotation="-90 0 0" 
+                      width="4" 
+                      height="4" 
+                      color="#223296" 
+                      material="" 
+                      geometry=""></a-plane>
+              <a-animation attribute="position" 
+                        from="0 0 -4" 
+                        to="0 -4 0" 
+                        dur="1000"
+                        direction="alternate-reverse"
+                        repeat="indefinite"></a-animation>
+            </a-entity>
+            <!-- platform_4 -->
+            <a-entity position="0 0 0" >
+              <a-plane id="platform_4"
+                      position="-4 0 -4" 
+                      rotation="-90 0 0" 
+                      width="4" 
+                      height="4" 
+                      color="#FD3E15" 
+                      material="" 
+                      geometry=""></a-plane>
+                <a-animation attribute="position" 
+                      from="-4 0 -4" 
+                      to="0 -4 0" 
+                      dur="1000"
+                      direction="alternate-reverse"
+                      repeat="indefinite"></a-animation>
+            </a-entity>
+            <!-- -platform_6 -->
+            <a-entity position="0 0 0" >
+              <a-plane id="platform_6" 
+                  position="0 0 -8" 
+                  rotation="-90 0 0" 
+                  width="4" 
+                  height="12" 
+                  color="#1ADEF9" 
+                  material="" 
+                  geometry=""></a-plane>
+              <a-animation attribute="position" 
+                      from="0 0 -8" 
+                      to="0 -4 -8" 
+                      dur="1000"
+                      direction="alternate-reverse"
+                      repeat="indefinite"></a-animation>
+            </a-entity>
+            <!-- -platform_5 -->
+            <a-entity position="0 0 0" >
+              <a-plane id="platform_5" 
+                  position="0 0 8" 
+                  rotation="-90 0 0" 
+                  width="4" 
+                  height="20" 
+                  color="#F95757" 
+                  material="" 
+                  geometry=""></a-plane>
+              <a-animation attribute="position" 
+                      from="0 0 8" 
+                      to="0 -4 4" 
+                      dur="1000"
+                      direction="alternate-reverse"
+                      repeat="indefinite"></a-animation>
+            </a-entity>
+          </a-entity>
+          <!-- Square Zero_Three -->
+          <a-entity position="40 0 100">
+            <!-- 
+                This section of code is for the moving shapes.
+
+                  -- Shape 1 
+                  -- Shape 2
+                  -- Shape 3
+            -->
+            <a-entity  position="0 0 0">
+              <a-entity  position="0 0 0">
+                <a-box position="-5.844592040302855 3.236704725633225 -3" 
+                      rotation="0 45 0" 
+                      color="#4CC3D9" 
+                      material="" 
+                      geometry=""> </a-box>
+                        <a-animation 
+                                attribute="rotation"
+                                dur="10000"
+                                fill="forwards"
+                                to="200 200 200"
+                                repeat="indefinite"></a-animation>
+              </a-entity>
+
+              <a-entity  position="0 0 0">
+                <a-sphere position="0 1.25 -3.3734518622144902" 
+                        radius="1.25" 
+                        color="#EF2D5E" 
+                        material="" 
+                        geometry=""></a-sphere>
+                <a-animation attribute="rotation"
+                       dur="80000"
+                       fill="forwards"
+                       to="0 360 0"
+                       repeat="indefinite"></a-animation>
+              </a-entity>
+
+              <a-entity  position="0 0 0">
+                <a-cylinder position="4.972937126212932 0.75 -3" 
+                          radius="0.5" 
+                          height="1.5" 
+                          color="#FFC65D" material="" geometry=""></a-cylinder>
+                  <a-animation attribute="rotation"
+                       dur="4000"
+                       fill="forwards"
+                       to="360 0 360"
+                       repeat="indefinite"></a-animation>
+              </a-entity>
+            </a-entity>
+
+            <!-- Side Swip-->
+            <a-cylinder color="#F55" 
+                      radius="0.1"
+                      animation="property: color; dir: alternate; dur: 1000;
+                                 easing: easeInSine; loop: true; to: #5F5"
+                      animation__scale="property: scale; dir: alternate; dur: 200;
+                                 easing: easeInSine; loop: true; to: 1.2 1 1.2"
+                      animation__yoyo="property: position; dir: alternate; dur: 1000;
+                                       easing: easeInSine; loop: true; to: 0 2 0">
+            </a-cylinder>
+            <!-- platform_1 -->
+            <a-entity >
+              <a-plane id="platform_1" 
+                    position="0 0 0" 
+                    rotation="-90 0 0" 
+                    width="4" 
+                    height="4" 
+                    color="#F91ACD" 
+                    material="" 
+                    geometry=""></a-plane>
+              <a-animation attribute="position" 
+                        from="0 0 0" 
+                        to="0 -4 0" 
+                        dur="1000"
+                        direction="alternate-reverse"
+                        repeat="indefinite"></a-animation>
+            </a-entity>
+            <!-- platform_2 -->
+            <a-entity >
+
+              <a-plane id="platform_2"
+                      position="4 0 -4" 
+                      rotation="-90 0 0" 
+                      width="4" 
+                      height="4" 
+                      color="#ECF91A" 
+                      material="" 
+                      geometry=""></a-plane>
+                <a-animation attribute="position" 
+                        from="4 0 -4" 
+                        to="0 -4 0" 
+                        dur="1000"
+                        direction="alternate-reverse"
+                        repeat="indefinite"></a-animation>
+            </a-entity>
+            <!-- platform_3 -->
+            <a-entity position="0 0 0" >
+              <a-plane id="platform_3"
+                      position="0 0 -4" 
+                      rotation="-90 0 0" 
+                      width="4" 
+                      height="4" 
+                      color="#223296" 
+                      material="" 
+                      geometry=""></a-plane>
+              <a-animation attribute="position" 
+                        from="0 0 -4" 
+                        to="0 -4 0" 
+                        dur="1000"
+                        direction="alternate-reverse"
+                        repeat="indefinite"></a-animation>
+            </a-entity>
+            <!-- platform_4 -->
+            <a-entity position="0 0 0" >
+              <a-plane id="platform_4"
+                      position="-4 0 -4" 
+                      rotation="-90 0 0" 
+                      width="4" 
+                      height="4" 
+                      color="#FD3E15" 
+                      material="" 
+                      geometry=""></a-plane>
+                <a-animation attribute="position" 
+                      from="-4 0 -4" 
+                      to="0 -4 0" 
+                      dur="1000"
+                      direction="alternate-reverse"
+                      repeat="indefinite"></a-animation>
+            </a-entity>
+            <!-- -platform_6 -->
+            <a-entity position="0 0 0" >
+              <a-plane id="platform_6" 
+                  position="0 0 -8" 
+                  rotation="-90 0 0" 
+                  width="4" 
+                  height="12" 
+                  color="#1ADEF9" 
+                  material="" 
+                  geometry=""></a-plane>
+              <a-animation attribute="position" 
+                      from="0 0 -8" 
+                      to="0 -4 -8" 
+                      dur="1000"
+                      direction="alternate-reverse"
+                      repeat="indefinite"></a-animation>
+            </a-entity>
+            <!-- -platform_5 -->
+            <a-entity position="0 0 0" >
+              <a-plane id="platform_5" 
+                  position="0 0 8" 
+                  rotation="-90 0 0" 
+                  width="4" 
+                  height="20" 
+                  color="#954D6E" 
+                  material="" 
+                  geometry=""></a-plane>
+              <a-animation attribute="position" 
+                      from="0 0 8" 
+                      to="0 -4 4" 
+                      dur="1000"
+                      direction="alternate-reverse"
+                      repeat="indefinite"></a-animation>
+            </a-entity>
+          </a-entity>
+          <!-- Square Zero_Four -->
+          <a-entity position="40 0 150">
+            <!-- 
+                This section of code is for the moving shapes.
+
+                  -- Shape 1 
+                  -- Shape 2
+                  -- Shape 3
+            -->
+            <a-entity  position="0 0 0">
+              <a-entity  position="0 0 0">
+                <a-box position="-5.844592040302855 3.236704725633225 -3" 
+                      rotation="0 45 0" 
+                      color="#4CC3D9" 
+                      material="" 
+                      geometry=""> </a-box>
+                        <a-animation 
+                                attribute="rotation"
+                                dur="20000"
+                                fill="forwards"
+                                to="200 200 200"
+                                repeat="indefinite"></a-animation>
+              </a-entity>
+              <a-entity  position="0 0 0">
+                <a-sphere position="0 1.25 -3.3734518622144902" 
+                        radius="1.25" 
+                        color="#EF2D5E" 
+                        material="" 
+                        geometry=""></a-sphere>
+                <a-animation attribute="rotation"
+                       dur="40000"
+                       fill="forwards"
+                       to="0 360 0"
+                       repeat="indefinite"></a-animation>
+              </a-entity>
+
+              <a-entity  position="0 0 0">
+                <a-cylinder position="4.972937126212932 0.75 -3" 
+                          radius="0.5" 
+                          height="1.5" 
+                          color="#FFC65D" material="" geometry=""></a-cylinder>
+                  <a-animation attribute="rotation"
+                       dur="8000"
+                       fill="forwards"
+                       to="275 345 345"
+                       repeat="indefinite"></a-animation>
+              </a-entity>
+            </a-entity>
+            <!-- Side Swip-->
+            <a-cylinder color="#F55" 
+                      radius="0.1"
+                      animation="property: color; dir: alternate; dur: 1000;
+                                 easing: easeInSine; loop: true; to: #5F5"
+                      animation__scale="property: scale; dir: alternate; dur: 200;
+                                 easing: easeInSine; loop: true; to: 1.2 1 1.2"
+                      animation__yoyo="property: position; dir: alternate; dur: 1000;
+                                       easing: easeInSine; loop: true; to: 0 2 0">
+            </a-cylinder>
+            <!-- platform_1 -->
+            <a-entity >
+              <a-plane id="platform_1" 
+                    position="0 0 0" 
+                    rotation="-90 0 0" 
+                    width="4" 
+                    height="4" 
+                    color="#F91ACD" 
+                    material="" 
+                    geometry=""></a-plane>
+              <a-animation attribute="position" 
+                        from="0 0 0" 
+                        to="0 -4 0" 
+                        dur="1000"
+                        direction="alternate-reverse"
+                        repeat="indefinite"></a-animation>
+            </a-entity>
+            <!-- platform_2 -->
+            <a-entity >
+
+              <a-plane id="platform_2"
+                      position="4 0 -4" 
+                      rotation="-90 0 0" 
+                      width="4" 
+                      height="4" 
+                      color="#ECF91A" 
+                      material="" 
+                      geometry=""></a-plane>
+                <a-animation attribute="position" 
+                        from="4 0 -4" 
+                        to="0 -4 0" 
+                        dur="1000"
+                        direction="alternate-reverse"
+                        repeat="indefinite"></a-animation>
+            </a-entity>
+            <!-- platform_3 -->
+            <a-entity position="0 0 0" >
+              <a-plane id="platform_3"
+                      position="0 0 -4" 
+                      rotation="-90 0 0" 
+                      width="4" 
+                      height="4" 
+                      color="#223296" 
+                      material="" 
+                      geometry=""></a-plane>
+              <a-animation attribute="position" 
+                        from="0 0 -4" 
+                        to="0 -4 0" 
+                        dur="1000"
+                        direction="alternate-reverse"
+                        repeat="indefinite"></a-animation>
+            </a-entity>
+            <!-- platform_4 -->
+            <a-entity position="0 0 0" >
+              <a-plane id="platform_4"
+                      position="-4 0 -4" 
+                      rotation="-90 0 0" 
+                      width="4" 
+                      height="4" 
+                      color="#FD3E15" 
+                      material="" 
+                      geometry=""></a-plane>
+                <a-animation attribute="position" 
+                      from="-4 0 -4" 
+                      to="0 -4 0" 
+                      dur="1000"
+                      direction="alternate-reverse"
+                      repeat="indefinite"></a-animation>
+            </a-entity>
+            <!-- -platform_6 -->
+            <a-entity position="0 0 0" >
+              <a-plane id="platform_6" 
+                  position="0 0 -8" 
+                  rotation="-90 0 0" 
+                  width="4" 
+                  height="12" 
+                  color="#1ADEF9" 
+                  material="" 
+                  geometry=""></a-plane>
+              <a-animation attribute="position" 
+                      from="0 0 -8" 
+                      to="0 -4 -8" 
+                      dur="1000"
+                      direction="alternate-reverse"
+                      repeat="indefinite"></a-animation>
+            </a-entity>
+            <!-- -platform_5 -->
+            <a-entity position="0 0 0" >
+              <a-plane id="platform_5" 
+                  position="0 0 8" 
+                  rotation="-90 0 0" 
+                  width="4" 
+                  height="20" 
+                  color="#1D99FF" 
+                  material="" 
+                  geometry=""></a-plane>
+              <a-animation attribute="position" 
+                      from="0 0 8" 
+                      to="0 -4 4" 
+                      dur="1000"
+                      direction="alternate-reverse"
+                      repeat="indefinite"></a-animation>
+            </a-entity>
+          </a-entity>
+          <!-- Square Zero_Five -->
+          <a-entity position="40 0 200">
+
+            <!-- 
+                This section of code is for the moving shapes.
+
+                  -- Shape 1 
+                  -- Shape 2
+                  -- Shape 3
+            -->
+            <a-entity  position="0 0 0">
+              <a-entity  position="0 0 0">
+                <a-box position="-5.844592040302855 3.236704725633225 -3" 
+                      rotation="0 45 0" 
+                      color="#4CC3D9" 
+                      material="" 
+                      geometry=""> </a-box>
+                        <a-animation 
+                                attribute="rotation"
+                                dur="40000"
+                                fill="forwards"
+                                to="200 200 200"
+                                repeat="indefinite"></a-animation>
+              </a-entity>
+
+              <a-entity position="0 0 0" >
+                <a-sphere position="0 1.25 -3.3734518622144902" 
+                        radius="1.25" 
+                        color="#EF2D5E" 
+                        material="" 
+                        geometry=""></a-sphere>
+                <a-animation attribute="rotation"
+                       dur="80000"
+                       fill="forwards"
+                       to="0 360 0"
+                       repeat="indefinite"></a-animation>
+              </a-entity>
+
+              <a-entity position="0 0 0" >
+                <a-cylinder position="4.972937126212932 0.75 -3" 
+                          radius="0.5" 
+                          height="1.5" 
+                          color="#FFC65D" material="" geometry=""></a-cylinder>
+                  <a-animation attribute="rotation"
+                       dur="1200"
+                       fill="forwards"
+                       to="69 239 29"
+                       repeat="indefinite"></a-animation>
+              </a-entity>
+            </a-entity>
+
+            <!-- Side Swip-->
+            <a-cylinder color="#F55" 
+                      radius="0.1"
+                      animation="property: color; dir: alternate; dur: 1000;
+                                 easing: easeInSine; loop: true; to: #5F5"
+                      animation__scale="property: scale; dir: alternate; dur: 200;
+                                 easing: easeInSine; loop: true; to: 1.2 1 1.2"
+                      animation__yoyo="property: position; dir: alternate; dur: 1000;
+                                       easing: easeInSine; loop: true; to: 0 2 0">
+            </a-cylinder>
+            <!-- platform_1 -->
+            <a-entity >
+              <a-plane id="platform_1" 
+                    2 
+                    rotation="-90 0 0" 
+                    width="4" 
+                    height="4" 
+                    color="#F91ACD" 
+                    material="" 
+                    geometry=""></a-plane>
+              <a-animation attribute="position" 
+                        from="0 0 0" 
+                        to="0 -4 0" 
+                        dur="1000"
+                        direction="alternate-reverse"
+                        repeat="indefinite"></a-animation>
+            </a-entity>
+            <!-- platform_2 -->
+            <a-entity >
+
+              <a-plane id="platform_2"
+                      position="4 0 -4" 
+                      rotation="-90 0 0" 
+                      width="4" 
+                      height="4" 
+                      color="#ECF91A" 
+                      material="" 
+                      geometry=""></a-plane>
+                <a-animation attribute="position" 
+                        from="4 0 -4" 
+                        to="0 -4 0" 
+                        dur="1000"
+                        direction="alternate-reverse"
+                        repeat="indefinite"></a-animation>
+            </a-entity>
+            <!-- platform_3 -->
+            <a-entity position="0 0 0" >
+              <a-plane id="platform_3"
+                      position="0 0 -4" 
+                      rotation="-90 0 0" 
+                      width="4" 
+                      height="4" 
+                      color="#223296" 
+                      material="" 
+                      geometry=""></a-plane>
+              <a-animation attribute="position" 
+                        from="0 0 -4" 
+                        to="0 -4 0" 
+                        dur="1000"
+                        direction="alternate-reverse"
+                        repeat="indefinite"></a-animation>
+            </a-entity>
+            <!-- platform_4 -->
+            <a-entity position="0 0 0" >
+              <a-plane id="platform_4"
+                      position="-4 0 -4" 
+                      rotation="-90 0 0" 
+                      width="4" 
+                      height="4" 
+                      color="#FD3E15" 
+                      material="" 
+                      geometry=""></a-plane>
+                <a-animation attribute="position" 
+                      from="-4 0 -4" 
+                      to="0 -4 0" 
+                      dur="1000"
+                      direction="alternate-reverse"
+                      repeat="indefinite"></a-animation>
+            </a-entity>
+            <!-- -platform_6 -->
+            <a-entity position="0 0 0" >
+              <a-plane id="platform_6" 
+                  position="0 0 -8" 
+                  rotation="-90 0 0" 
+                  width="4" 
+                  height="12" 
+                  color="#1ADEF9" 
+                  material="" 
+                  geometry=""></a-plane>
+              <a-animation attribute="position" 
+                      from="0 0 -8" 
+                      to="0 -4 -8" 
+                      dur="1000"
+                      direction="alternate-reverse"
+                      repeat="indefinite"></a-animation>
+            </a-entity>
+            <!-- -platform_5 -->
+            <a-entity position="0 0 0" >
+              <a-plane id="platform_5" 
+                  position="0 0 8" 
+                  rotation="-90 0 0" 
+                  width="4" 
+                  height="20" 
+                  color="#827BF4" 
+                  material="" 
+                  geometry=""></a-plane>
+              <a-animation attribute="position" 
+                      from="0 0 8" 
+                      to="0 -4 4" 
+                      dur="1000"
+                      direction="alternate-reverse"
+                      repeat="indefinite"></a-animation>
+            </a-entity>
+          </a-entity>
+          <!-- Square Zero_Six -->
+          <a-entity position="40 0 250">
+            <!-- 
+                This section of code is for the moving shapes.
+
+                  -- Shape 1 
+                  -- Shape 2
+                  -- Shape 3
+            -->
+            <a-entity  position="0 0 0">
+              <a-entity  position="0 0 0">
+                <a-box position="-5.844592040302855 3.236704725633225 -3" 
+                      rotation="0 45 0" 
+                      color="#4CC3D9" 
+                      material="" 
+                      geometry=""> </a-box>
+                        <a-animation 
+                                attribute="rotation"
+                                dur="120000"
+                                fill="forwards"
+                                to="200 200 200"
+                                repeat="indefinite"></a-animation>
+              </a-entity>
+
+              <a-entity position="0 0 0" >
+                <a-sphere position="0 1.25 -3.3734518622144902" 
+                        radius="1.25" 
+                        color="#EF2D5E" 
+                        material="" 
+                        geometry=""></a-sphere>
+                <a-animation attribute="rotation"
+                       dur="80000"
+                       fill="forwards"
+                       to="0 360 0"
+                       repeat="indefinite"></a-animation>
+              </a-entity>
+
+              <a-entity position="0 0 0" >
+                <a-cylinder position="4.972937126212932 0.75 -3" 
+                          radius="0.5" 
+                          height="1.5" 
+                          color="#FFC65D" material="" geometry=""></a-cylinder>
+                  <a-animation attribute="rotation"
+                       dur="1000"
+                       fill="forwards"
+                       to="182 728 819"
+                       repeat="indefinite"></a-animation>
+              </a-entity>
+            </a-entity>
+            <!-- Side Swip-->
+            <a-cylinder color="#F55" 
+                      radius="0.1"
+                      animation="property: color; dir: alternate; dur: 1000;
+                                 easing: easeInSine; loop: true; to: #5F5"
+                      animation__scale="property: scale; dir: alternate; dur: 200;
+                                 easing: easeInSine; loop: true; to: 1.2 1 1.2"
+                      animation__yoyo="property: position; dir: alternate; dur: 1000;
+                                       easing: easeInSine; loop: true; to: 0 2 0">
+            </a-cylinder>
+            <!-- platform_1 -->
+            <a-entity >
+              <a-plane id="platform_1" 
+                    position="0 0 0" 
+                    rotation="-90 0 0" 
+                    width="4" 
+                    height="4" 
+                    color="#F91ACD" 
+                    material="" 
+                    geometry=""></a-plane>
+              <a-animation attribute="position" 
+                        from="0 0 0" 
+                        to="0 -4 0" 
+                        dur="1000"
+                        direction="alternate-reverse"
+                        repeat="indefinite"></a-animation>
+            </a-entity>
+            <!-- platform_2 -->
+            <a-entity >
+              <a-plane id="platform_2"
+                      position="4 0 -4" 
+                      rotation="-90 0 0" 
+                      width="4" 
+                      height="4" 
+                      color="#ECF91A" 
+                      material="" 
+                      geometry=""></a-plane>
+                <a-animation attribute="position" 
+                        from="4 0 -4" 
+                        to="0 -4 0" 
+                        dur="1000"
+                        direction="alternate-reverse"
+                        repeat="indefinite"></a-animation>
+            </a-entity>
+            <!-- platform_3 -->
+            <a-entity position="0 0 0" >
+              <a-plane id="platform_3"
+                      position="0 0 -4" 
+                      rotation="-90 0 0" 
+                      width="4" 
+                      height="4" 
+                      color="#223296" 
+                      material="" 
+                      geometry=""></a-plane>
+              <a-animation attribute="position" 
+                        from="0 0 -4" 
+                        to="0 -4 0" 
+                        dur="1000"
+                        direction="alternate-reverse"
+                        repeat="indefinite"></a-animation>
+            </a-entity>
+            <!-- platform_4 -->
+            <a-entity position="0 0 0" >
+              <a-plane id="platform_4"
+                      position="-4 0 -4" 
+                      rotation="-90 0 0" 
+                      width="4" 
+                      height="4" 
+                      color="#FD3E15" 
+                      material="" 
+                      geometry=""></a-plane>
+                <a-animation attribute="position" 
+                      from="-4 0 -4" 
+                      to="0 -4 0" 
+                      dur="1000"
+                      direction="alternate-reverse"
+                      repeat="indefinite"></a-animation>
+            </a-entity>
+            <!-- -platform_6 -->
+            <a-entity position="0 0 0" >
+              <a-plane id="platform_6" 
+                  position="0 0 -8" 
+                  rotation="-90 0 0" 
+                  width="4" 
+                  height="12" 
+                  color="#1ADEF9" 
+                  material="" 
+                  geometry=""></a-plane>
+              <a-animation attribute="position" 
+                      from="0 0 -8" 
+                      to="0 -4 -8" 
+                      dur="1000"
+                      direction="alternate-reverse"
+                      repeat="indefinite"></a-animation>
+            </a-entity>
+            <!-- -platform_5 -->
+            <a-entity position="0 0 0" >
+              <a-plane id="platform_5" 
+                  position="0 0 8" 
+                  rotation="-90 0 0" 
+                  width="4" 
+                  height="20" 
+                  color="#784BD6" 
+                  material="" 
+                  geometry=""></a-plane>
+              <a-animation attribute="position" 
+                      from="0 0 8" 
+                      to="0 -4 4" 
+                      dur="1000"
+                      direction="alternate-reverse"
+                      repeat="indefinite"></a-animation>
+            </a-entity>
+          </a-entity>
+        </a-entity>
+      </a-entity>
+    </a-scene>
+  </body>
+</html>
