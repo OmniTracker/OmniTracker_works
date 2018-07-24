@@ -1,0 +1,68 @@
+#
+# Web VR Screen Sessions
+#
+
+startup_message off
+defscrollback 5000
+
+escape ``
+
+hardstatus             alwayslastline
+hardstatus string '%{= kG}[ %{G}%H %{g}][%= %{= kw}%?%-Lw%?%{r}(%{W}%n*%f%t%?(%u)%?%{r})%{w}%?%+Lw%?%?%= %{g}][%{B} %d/%m %{W}%c %{g}]'
+
+multiuser on
+
+screen -t "Building Workspace"
+stuff "cd ../catkin_ws^M"
+stuff "bash -x baxter.sh^M"
+stuff "source /opt/ros/indigo/setup.bash^M"
+stuff "catkin_make"
+
+screen -t " Baxter Wobbler Setup"
+stuff "cd ../catkin_ws^M"
+stuff "bash -x baxter.sh^M"
+stuff "cd ..^M"
+stuff "rosrun baxter_examples joint_velocity_wobbler.py"
+
+screen -t " TF2 Web Republisher"
+stuff "cd ../catkin_ws^M"
+stuff "bash -x baxter.sh^M"
+stuff "cd ..^M"
+stuff "rosrun tf2_web_republisher tf2_web_republisher"
+
+screen -t " Rosbridge Server"
+stuff "cd ../catkin_ws^M"
+stuff "bash -x baxter.sh^M"
+stuff "cd ..^M"
+stuff "roslaunch rosbridge_server rosbridge_websocket.launch"
+
+screen -t "Incoming TF2 Data"
+stuff "cd ../catkin_ws^M"
+stuff "bash -x baxter.sh^M"
+stuff "cd ..^M"
+stuff "rostopic echo /tf"
+
+screen -t "Extra Session"
+stuff "cd ../catkin_ws^M"
+stuff "bash -x baxter.sh^M"
+stuff "cd ..^M"
+stuff "ifconfig^M"
+
+screen -t "Git Screen Session"
+stuff "cd ../catkin_ws^M"
+stuff "bash -x baxter.sh^M"
+stuff "cd ../^M"
+stuff "git status^M"
+stuff "git add ."
+
+# You need to manually set the directory
+# when you open the web terminal
+screen -t "Localhost Server for Webpage"
+stuff "cd^M"
+stuff "python -m SimpleHTTPServer 9090"
+
+# <!-- Need to Insert URL -->
+screen -t "Open chrome from terminal"
+stuff "cd^M"
+stuff "google-chrome &^M"
+stuff "google-chrome &^M"
